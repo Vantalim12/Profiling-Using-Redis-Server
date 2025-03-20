@@ -1,4 +1,4 @@
-// src/app.js - Complete update with resident routes
+// src/app.js - Complete update with all routes
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext.js";
@@ -9,7 +9,7 @@ import AuthLayout from "./layouts/AuthLayout.js";
 
 // Auth Pages
 import Login from "./pages/auth/Login.js";
-import Register from "./pages/auth/Register.js"; // New Register component
+import Register from "./pages/auth/Register.js";
 
 // Dashboard Pages
 import Dashboard from "./pages/dashboard/Dashboard.js";
@@ -27,10 +27,15 @@ import EditResident from "./pages/residents/EditResident.js";
 import ResidentDetails from "./pages/residents/ResidentDetails.js";
 import ResidentProfile from "./pages/residents/ResidentProfile.js";
 
-// New Resident Portal Pages
+// Resident Portal Pages
 import CertificateRequest from "./pages/residents/CertificateRequest.js";
 import Announcements from "./pages/residents/Announcements.js";
 import Events from "./pages/residents/Events.js";
+
+// Admin Management Pages
+import DocumentRequests from "./pages/admin/DocumentRequests.js";
+import AnnouncementsManagement from "./pages/admin/AnnouncementsManagement.js";
+import EventsManagement from "./pages/admin/EventsManagement.js";
 
 // User Profile Pages
 import UserProfile from "./pages/profile/UserProfile.js";
@@ -165,6 +170,34 @@ function App() {
             }
           />
         </Route>
+
+        {/* Admin Management Routes - Admin Only */}
+        <Route
+          path="documents"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <DocumentRequests />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="announcements"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <AnnouncementsManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="events-management"
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <EventsManagement />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Resident Portal Routes */}
         <Route

@@ -1,4 +1,4 @@
-// src/layouts/MainLayout.js - Updated with role-based navigation
+// src/layouts/MainLayout.js - Updated with admin management links
 import React, { useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import {
@@ -83,13 +83,53 @@ const MainLayout = () => {
           </Nav.Link>
           <Nav.Link
             as={Link}
+            to="/dashboard/documents"
+            className={`d-flex align-items-center py-3 px-3 ${
+              isActive("/dashboard/documents") ? "bg-primary" : ""
+            }`}
+            onClick={closeSidebar}
+          >
+            <FaFileAlt className="me-3" /> Document Requests
+          </Nav.Link>
+          <Nav.Link
+            as={Link}
+            to="/dashboard/announcements"
+            className={`d-flex align-items-center py-3 px-3 ${
+              isActive("/dashboard/announcements") ? "bg-primary" : ""
+            }`}
+            onClick={closeSidebar}
+          >
+            <FaBullhorn className="me-3" /> Announcements
+          </Nav.Link>
+          <Nav.Link
+            as={Link}
+            to="/dashboard/events-management"
+            className={`d-flex align-items-center py-3 px-3 ${
+              isActive("/dashboard/events-management") ? "bg-primary" : ""
+            }`}
+            onClick={closeSidebar}
+          >
+            <FaCalendarAlt className="me-3" /> Events
+          </Nav.Link>
+          <Nav.Link
+            as={Link}
+            to="/dashboard/certificates"
+            className={`d-flex align-items-center py-3 px-3 ${
+              isActive("/dashboard/certificates") ? "bg-primary" : ""
+            }`}
+            onClick={closeSidebar}
+          >
+            <FaFileAlt className="me-3" /> Certificates
+          </Nav.Link>
+          <Nav.Link
+            as={Link}
             to="/dashboard/profile"
             className={`d-flex align-items-center py-3 px-3 ${
               isActive("/dashboard/profile") ? "bg-primary" : ""
             }`}
             onClick={closeSidebar}
           >
-            <FaUser className="me-3" /> Profile
+            <FaUser className="me-3" /> Account Settings
           </Nav.Link>
         </>
       );
