@@ -23,6 +23,10 @@ import {
   FaFilter,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { CSVLink } from "react-csv";
+
+// We would typically import a service for the API calls
+// import { certificateService } from "../../services/api";
 
 const DocumentRequests = () => {
   const [loading, setLoading] = useState(false);
@@ -30,6 +34,8 @@ const DocumentRequests = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectModal, setShowRejectModal] = useState(false);
 
   // Sample document requests data (in a real app, this would come from the API)
   const [documentRequests, setDocumentRequests] = useState([
@@ -86,6 +92,23 @@ const DocumentRequests = () => {
     },
   ]);
 
+  // In a real application, we would fetch the document requests on component mount
+  // useEffect(() => {
+  //   const fetchDocumentRequests = async () => {
+  //     try {
+  //       setLoading(true);
+  //       const response = await certificateService.getAllRequests();
+  //       setDocumentRequests(response.data);
+  //     } catch (error) {
+  //       console.error("Error fetching document requests:", error);
+  //       toast.error("Failed to load document requests");
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   };
+  //   fetchDocumentRequests();
+  // }, []);
+
   // Get certificate type display name
   const getCertificateTypeName = (type) => {
     switch (type) {
@@ -134,6 +157,46 @@ const DocumentRequests = () => {
 
     return matchesSearch && matchesStatus;
   });
+
+  // Prepare data for CSV export
+  const exportData = filteredRequests.map((request) => ({
+    "Request ID": request.requestId,
+    "Resident ID": request.residentId,
+    "Resident Name": request.residentName,
+    "Certificate Type": getCertificateTypeName(request.certificateType),
+    "Request Date": new Date(request.requestDate).toLocaleString(),
+    Status: request.status,
+    "Delivery Method": request.deliveryOption,
+    Purpose: request.purpose,
+    ...(request.approvedDate
+      ? { "Approved Date": new Date(request.approvedDate).toLocaleString() }
+      : {}),
+    ...(request.completedDate
+      ? { "Completed Date": new Date(request.completedDate).toLocaleString() }
+      : {}),
+    ...(request.rejectedDate
+      ? { "Rejected Date": new Date(request.rejectedDate).toLocaleString() }
+      : {}),
+    ...(request.rejectionReason
+      ? { "Rejection Reason": request.rejectionReason }
+      : {}),
+  }));
+
+  // CSV headers
+  const csvHeaders = [
+    { label: "Request ID", key: "Request ID" },
+    { label: "Resident ID", key: "Resident ID" },
+    { label: "Resident Name", key: "Resident Name" },
+    { label: "Certificate Type", key: "Certificate Type" },
+    { label: "Request Date", key: "Request Date" },
+    { label: "Status", key: "Status" },
+    { label: "Delivery Method", key: "Delivery Method" },
+    { label: "Purpose", key: "Purpose" },
+    { label: "Approved Date", key: "Approved Date" },
+    { label: "Completed Date", key: "Completed Date" },
+    { label: "Rejected Date", key: "Rejected Date" },
+    { label: "Rejection Reason", key: "Rejection Reason" },
+  ];
 
   // Show request details
   const handleViewDetails = (request) => {
@@ -194,17 +257,33 @@ const DocumentRequests = () => {
     }, 1000);
   };
 
+  // Show rejection modal
+  const handleShowRejectModal = () => {
+    setShowRejectModal(true);
+  };
+
+  // Close rejection modal
+  const handleCloseRejectModal = () => {
+    setShowRejectModal(false);
+    setRejectionReason("");
+  };
+
   // Reject request
-  const handleRejectRequest = (requestId, reason) => {
+  const handleRejectRequest = () => {
+    if (!rejectionReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+
     // In a real app, this would be an API call
     setLoading(true);
     setTimeout(() => {
       const updatedRequests = documentRequests.map((req) => {
-        if (req.id === requestId) {
+        if (req.id === selectedRequest.id) {
           return {
             ...req,
             status: "rejected",
-            rejectionReason: reason,
+            rejectionReason,
             rejectedDate: new Date().toISOString(),
             rejectedBy: "Admin",
           };
@@ -214,9 +293,17 @@ const DocumentRequests = () => {
 
       setDocumentRequests(updatedRequests);
       setLoading(false);
+      handleCloseRejectModal();
       handleCloseModal();
       toast.info("Request rejected");
     }, 1000);
+  };
+
+  // Print certificate function
+  const handlePrintCertificate = (requestId) => {
+    // In a real app, this would open a print dialog with the certificate template
+    toast.info("Printing certificate...");
+    // Here you would render the certificate template and use window.print()
   };
 
   return (
@@ -256,9 +343,14 @@ const DocumentRequests = () => {
         </Col>
 
         <Col md={3} className="text-md-end">
-          <Button variant="primary">
-            <FaDownload className="me-2" /> Export List
-          </Button>
+          <CSVLink
+            data={exportData}
+            headers={csvHeaders}
+            filename={"document-requests.csv"}
+            className="btn btn-primary"
+          >
+            <FaDownload className="me-2" /> Export to CSV
+          </CSVLink>
         </Col>
       </Row>
 
@@ -310,7 +402,11 @@ const DocumentRequests = () => {
                       )}
 
                       {request.status === "completed" && (
-                        <Button variant="secondary" size="sm">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handlePrintCertificate(request.id)}
+                        >
                           <FaPrint />
                         </Button>
                       )}
@@ -443,12 +539,7 @@ const DocumentRequests = () => {
                     <Col md={6}>
                       <Button
                         variant="danger"
-                        onClick={() =>
-                          handleRejectRequest(
-                            selectedRequest.id,
-                            "Document requirements incomplete"
-                          )
-                        }
+                        onClick={handleShowRejectModal}
                         disabled={loading}
                       >
                         {loading ? (
@@ -500,7 +591,10 @@ const DocumentRequests = () => {
               {selectedRequest.status === "completed" && (
                 <>
                   <hr />
-                  <Button variant="primary">
+                  <Button
+                    variant="primary"
+                    onClick={() => handlePrintCertificate(selectedRequest.id)}
+                  >
                     <FaPrint className="me-2" /> Print Certificate
                   </Button>
                 </>
@@ -511,6 +605,48 @@ const DocumentRequests = () => {
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseModal}>
             Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Rejection Reason Modal */}
+      <Modal show={showRejectModal} onHide={handleCloseRejectModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>Reject Request</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3">
+            <Form.Label>Reason for Rejection</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Please provide a reason for rejecting this request"
+            />
+          </Form.Group>
+          <div className="text-muted small">
+            This reason will be visible to the resident who submitted the
+            request.
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseRejectModal}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleRejectRequest}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Processing...
+              </>
+            ) : (
+              "Reject Request"
+            )}
           </Button>
         </Modal.Footer>
       </Modal>

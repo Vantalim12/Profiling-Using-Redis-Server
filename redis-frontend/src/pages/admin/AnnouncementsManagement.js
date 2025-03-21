@@ -1,5 +1,5 @@
 // src/pages/admin/AnnouncementsManagement.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -22,6 +22,8 @@ import {
   FaBullhorn,
   FaPlus,
   FaFilter,
+  FaCalendarAlt,
+  FaEye,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 
@@ -30,8 +32,10 @@ const AnnouncementsManagement = () => {
   const [filterCategory, setFilterCategory] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+  const [persistentAnnouncements, setPersistentAnnouncements] = useState([]);
 
   // Sample announcements data (in a real app, this would come from the API)
   const [announcements, setAnnouncements] = useState([
@@ -81,6 +85,15 @@ const AnnouncementsManagement = () => {
         "The Barangay Summer Sports Festival will be held from July 25 to August 5, 2023, at the Barangay Sports Complex. Registration is now open until July 20. Contact the Barangay Office for details.",
     },
   ]);
+
+  // Store announcements in persistent state to prevent loss on refresh
+  useEffect(() => {
+    if (persistentAnnouncements.length === 0 && announcements.length > 0) {
+      setPersistentAnnouncements(announcements);
+    } else if (persistentAnnouncements.length > 0) {
+      setAnnouncements(persistentAnnouncements);
+    }
+  }, [persistentAnnouncements]);
 
   // Validation schema for announcement form
   const announcementSchema = Yup.object({
@@ -132,6 +145,11 @@ const AnnouncementsManagement = () => {
     return matchesSearch && matchesCategory;
   });
 
+  // Sort by date (newest first)
+  const sortedAnnouncements = [...filteredAnnouncements].sort(
+    (a, b) => new Date(b.date) - new Date(a.date)
+  );
+
   // Handle add announcement
   const handleAddAnnouncement = (values, { resetForm }) => {
     setLoading(true);
@@ -143,7 +161,9 @@ const AnnouncementsManagement = () => {
         ...values,
       };
 
-      setAnnouncements([newAnnouncement, ...announcements]);
+      const updatedAnnouncements = [newAnnouncement, ...announcements];
+      setAnnouncements(updatedAnnouncements);
+      setPersistentAnnouncements(updatedAnnouncements);
       setLoading(false);
       setShowAddModal(false);
       resetForm();
@@ -168,6 +188,7 @@ const AnnouncementsManagement = () => {
       });
 
       setAnnouncements(updatedAnnouncements);
+      setPersistentAnnouncements(updatedAnnouncements);
       setLoading(false);
       setShowEditModal(false);
       setSelectedAnnouncement(null);
@@ -183,6 +204,7 @@ const AnnouncementsManagement = () => {
         (announcement) => announcement.id !== id
       );
       setAnnouncements(updatedAnnouncements);
+      setPersistentAnnouncements(updatedAnnouncements);
       toast.success("Announcement deleted successfully");
     }
   };
@@ -191,6 +213,12 @@ const AnnouncementsManagement = () => {
   const openEditModal = (announcement) => {
     setSelectedAnnouncement(announcement);
     setShowEditModal(true);
+  };
+
+  // Open view modal
+  const openViewModal = (announcement) => {
+    setSelectedAnnouncement(announcement);
+    setShowViewModal(true);
   };
 
   return (
@@ -249,8 +277,8 @@ const AnnouncementsManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredAnnouncements.length > 0 ? (
-                filteredAnnouncements.map((announcement) => (
+              {sortedAnnouncements.length > 0 ? (
+                sortedAnnouncements.map((announcement) => (
                   <tr key={announcement.id}>
                     <td>{announcement.title}</td>
                     <td>{getCategoryBadge(announcement.category)}</td>
@@ -258,10 +286,20 @@ const AnnouncementsManagement = () => {
                     <td>{new Date(announcement.date).toLocaleDateString()}</td>
                     <td>
                       <Button
+                        variant="info"
+                        size="sm"
+                        className="me-1"
+                        onClick={() => openViewModal(announcement)}
+                        title="View"
+                      >
+                        <FaEye />
+                      </Button>
+                      <Button
                         variant="primary"
                         size="sm"
                         className="me-1"
                         onClick={() => openEditModal(announcement)}
+                        title="Edit"
                       >
                         <FaEdit />
                       </Button>
@@ -271,6 +309,7 @@ const AnnouncementsManagement = () => {
                         onClick={() =>
                           handleDeleteAnnouncement(announcement.id)
                         }
+                        title="Delete"
                       >
                         <FaTrash />
                       </Button>
@@ -591,6 +630,60 @@ const AnnouncementsManagement = () => {
             )}
           </Formik>
         )}
+      </Modal>
+
+      {/* View Announcement Modal */}
+      <Modal
+        show={showViewModal}
+        onHide={() => setShowViewModal(false)}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaBullhorn className="me-2" /> View Announcement
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedAnnouncement && (
+            <>
+              <h4>{selectedAnnouncement.title}</h4>
+              <div className="d-flex align-items-center mb-3">
+                <FaCalendarAlt className="text-primary me-2" />
+                <span>
+                  {new Date(selectedAnnouncement.date).toLocaleDateString()}
+                </span>
+                <span className="mx-2">|</span>
+                {getCategoryBadge(selectedAnnouncement.category)}
+                <span className="mx-2">|</span>
+                {getTypeBadge(selectedAnnouncement.type)}
+              </div>
+              <hr />
+              <div className="announcement-content">
+                {selectedAnnouncement.content
+                  .split("\n")
+                  .map((paragraph, idx) =>
+                    paragraph ? <p key={idx}>{paragraph}</p> : <br key={idx} />
+                  )}
+              </div>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowViewModal(false)}>
+            Close
+          </Button>
+          {selectedAnnouncement && (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setShowViewModal(false);
+                openEditModal(selectedAnnouncement);
+              }}
+            >
+              <FaEdit className="me-2" /> Edit
+            </Button>
+          )}
+        </Modal.Footer>
       </Modal>
     </Container>
   );

@@ -1,5 +1,5 @@
 // src/pages/admin/EventsManagement.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -12,6 +12,9 @@ import {
   InputGroup,
   Modal,
   Spinner,
+  ListGroup,
+  Tabs,
+  Tab,
 } from "react-bootstrap";
 import { Formik } from "formik";
 import * as Yup from "yup";
@@ -24,6 +27,10 @@ import {
   FaFilter,
   FaMapMarkerAlt,
   FaClock,
+  FaUsers,
+  FaUserCheck,
+  FaUserPlus,
+  FaEnvelope,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 
@@ -34,8 +41,10 @@ const EventsManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
+  const [persistentEvents, setPersistentEvents] = useState([]);
 
-  // Sample events data (in a real app, this would come from the API)
+  // Sample events data
   const [events, setEvents] = useState([
     {
       id: 1,
@@ -46,6 +55,10 @@ const EventsManagement = () => {
       category: "meeting",
       description:
         "Quarterly barangay assembly meeting to discuss community issues and upcoming projects.",
+      attendees: [
+        { id: "R-2023001", name: "John Doe", contactNumber: "09123456789" },
+        { id: "R-2023002", name: "Jane Smith", contactNumber: "09234567890" },
+      ],
     },
     {
       id: 2,
@@ -56,6 +69,19 @@ const EventsManagement = () => {
       category: "health",
       description:
         "Free medical check-ups and consultations. Services include blood pressure monitoring, blood sugar screening, dental check-up, and eye examination.",
+      attendees: [
+        { id: "R-2023001", name: "John Doe", contactNumber: "09123456789" },
+        {
+          id: "R-2023003",
+          name: "Robert Johnson",
+          contactNumber: "09345678901",
+        },
+        {
+          id: "R-2023004",
+          name: "Sarah Williams",
+          contactNumber: "09456789012",
+        },
+      ],
     },
     {
       id: 3,
@@ -66,6 +92,7 @@ const EventsManagement = () => {
       category: "training",
       description:
         "Basic entrepreneurship skills training and product development workshop. Registration required.",
+      attendees: [],
     },
     {
       id: 4,
@@ -76,6 +103,9 @@ const EventsManagement = () => {
       category: "environment",
       description:
         "Monthly community clean-up drive. Please bring your own gloves and cleaning materials.",
+      attendees: [
+        { id: "R-2023002", name: "Jane Smith", contactNumber: "09234567890" },
+      ],
     },
     {
       id: 5,
@@ -86,6 +116,7 @@ const EventsManagement = () => {
       category: "social",
       description:
         "Special program for senior citizens including health talks, games, and distribution of benefits.",
+      attendees: [],
     },
     {
       id: 6,
@@ -96,8 +127,18 @@ const EventsManagement = () => {
       category: "sports",
       description:
         "Basketball and volleyball tournament for barangay youth. Registration is open until August 25.",
+      attendees: [],
     },
   ]);
+
+  // Store events in state to persist them
+  useEffect(() => {
+    if (persistentEvents.length === 0 && events.length > 0) {
+      setPersistentEvents(events);
+    } else {
+      setEvents(persistentEvents);
+    }
+  }, [persistentEvents]);
 
   // Validation schema for event form
   const eventSchema = Yup.object({
@@ -155,9 +196,12 @@ const EventsManagement = () => {
       const newEvent = {
         id: events.length + 1,
         ...values,
+        attendees: [], // Initialize with empty attendees list
       };
 
-      setEvents([...events, newEvent]);
+      const updatedEvents = [...events, newEvent];
+      setEvents(updatedEvents);
+      setPersistentEvents(updatedEvents);
       setLoading(false);
       setShowAddModal(false);
       resetForm();
@@ -182,6 +226,7 @@ const EventsManagement = () => {
       });
 
       setEvents(updatedEvents);
+      setPersistentEvents(updatedEvents);
       setLoading(false);
       setShowEditModal(false);
       setSelectedEvent(null);
@@ -195,6 +240,7 @@ const EventsManagement = () => {
       // In a real app, this would be an API call
       const updatedEvents = events.filter((event) => event.id !== id);
       setEvents(updatedEvents);
+      setPersistentEvents(updatedEvents);
       toast.success("Event deleted successfully");
     }
   };
@@ -203,6 +249,83 @@ const EventsManagement = () => {
   const openEditModal = (event) => {
     setSelectedEvent(event);
     setShowEditModal(true);
+  };
+
+  // Open attendees modal
+  const openAttendeesModal = (event) => {
+    setSelectedEvent(event);
+    setShowAttendeesModal(true);
+  };
+
+  // Add attendee manually
+  const handleAddAttendee = (newAttendee) => {
+    if (!newAttendee.id || !newAttendee.name) {
+      toast.error("Resident ID and Name are required");
+      return;
+    }
+
+    // Check if attendee already exists
+    const exists = selectedEvent.attendees.some(
+      (attendee) => attendee.id === newAttendee.id
+    );
+    if (exists) {
+      toast.warning("This resident is already registered for this event");
+      return;
+    }
+
+    // In a real app, this would validate the resident exists
+    const updatedEvents = events.map((event) => {
+      if (event.id === selectedEvent.id) {
+        return {
+          ...event,
+          attendees: [...event.attendees, newAttendee],
+        };
+      }
+      return event;
+    });
+
+    setEvents(updatedEvents);
+    setPersistentEvents(updatedEvents);
+    setSelectedEvent({
+      ...selectedEvent,
+      attendees: [...selectedEvent.attendees, newAttendee],
+    });
+    toast.success(`${newAttendee.name} added to attendees list`);
+  };
+
+  // Remove attendee
+  const handleRemoveAttendee = (attendeeId) => {
+    if (window.confirm("Are you sure you want to remove this attendee?")) {
+      const updatedEvents = events.map((event) => {
+        if (event.id === selectedEvent.id) {
+          return {
+            ...event,
+            attendees: event.attendees.filter(
+              (attendee) => attendee.id !== attendeeId
+            ),
+          };
+        }
+        return event;
+      });
+
+      setEvents(updatedEvents);
+      setPersistentEvents(updatedEvents);
+      setSelectedEvent({
+        ...selectedEvent,
+        attendees: selectedEvent.attendees.filter(
+          (attendee) => attendee.id !== attendeeId
+        ),
+      });
+      toast.success("Attendee removed successfully");
+    }
+  };
+
+  // Send notification to attendees
+  const handleSendNotification = () => {
+    toast.info(
+      `Sending notification to ${selectedEvent.attendees.length} attendees about "${selectedEvent.title}"`
+    );
+    // In a real app, this would send notifications to attendees
   };
 
   return (
@@ -260,6 +383,7 @@ const EventsManagement = () => {
                 <th>Time</th>
                 <th>Location</th>
                 <th>Category</th>
+                <th>Attendees</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -274,10 +398,20 @@ const EventsManagement = () => {
                     <td>{getCategoryBadge(event.category)}</td>
                     <td>
                       <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => openAttendeesModal(event)}
+                      >
+                        <FaUsers className="me-1" /> {event.attendees.length}
+                      </Button>
+                    </td>
+                    <td>
+                      <Button
                         variant="primary"
                         size="sm"
                         className="me-1"
                         onClick={() => openEditModal(event)}
+                        title="Edit"
                       >
                         <FaEdit />
                       </Button>
@@ -285,6 +419,7 @@ const EventsManagement = () => {
                         variant="danger"
                         size="sm"
                         onClick={() => handleDeleteEvent(event.id)}
+                        title="Delete"
                       >
                         <FaTrash />
                       </Button>
@@ -293,7 +428,7 @@ const EventsManagement = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-3">
+                  <td colSpan="7" className="text-center py-3">
                     No events found matching your criteria.
                   </td>
                 </tr>
@@ -635,6 +770,169 @@ const EventsManagement = () => {
             )}
           </Formik>
         )}
+      </Modal>
+
+      {/* Attendees Modal */}
+      <Modal
+        show={showAttendeesModal}
+        onHide={() => setShowAttendeesModal(false)}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaUsers className="me-2" /> Event Attendees
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedEvent && (
+            <>
+              <div className="mb-3">
+                <h5>{selectedEvent.title}</h5>
+                <p className="mb-2">
+                  <FaCalendarAlt className="me-2 text-primary" />
+                  {new Date(selectedEvent.date).toLocaleDateString()} |{" "}
+                  {selectedEvent.time}
+                </p>
+                <p className="mb-0">
+                  <FaMapMarkerAlt className="me-2 text-danger" />
+                  {selectedEvent.location}
+                </p>
+              </div>
+
+              <Tabs defaultActiveKey="attendees" className="mb-3">
+                <Tab eventKey="attendees" title="Attendees">
+                  {selectedEvent.attendees.length > 0 ? (
+                    <ListGroup>
+                      {selectedEvent.attendees.map((attendee) => (
+                        <ListGroup.Item
+                          key={attendee.id}
+                          className="d-flex justify-content-between align-items-center"
+                        >
+                          <div>
+                            <div>
+                              <strong>{attendee.name}</strong> ({attendee.id})
+                            </div>
+                            <div className="text-muted small">
+                              {attendee.contactNumber || "No contact number"}
+                            </div>
+                          </div>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => handleRemoveAttendee(attendee.id)}
+                          >
+                            Remove
+                          </Button>
+                        </ListGroup.Item>
+                      ))}
+                    </ListGroup>
+                  ) : (
+                    <p className="text-center text-muted">
+                      No attendees registered yet
+                    </p>
+                  )}
+                </Tab>
+
+                <Tab eventKey="add" title="Add Attendee">
+                  <Formik
+                    initialValues={{
+                      id: "",
+                      name: "",
+                      contactNumber: "",
+                    }}
+                    onSubmit={(values, { resetForm }) => {
+                      handleAddAttendee(values);
+                      resetForm();
+                    }}
+                  >
+                    {({
+                      values,
+                      errors,
+                      touched,
+                      handleChange,
+                      handleBlur,
+                      handleSubmit,
+                    }) => (
+                      <Form onSubmit={handleSubmit}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Resident ID</Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="id"
+                            value={values.id}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            placeholder="e.g., R-2023001"
+                          />
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                          <Form.Label>Name</Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="name"
+                            value={values.name}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            placeholder="Full Name"
+                          />
+                        </Form.Group>
+
+                        <Form.Group className="mb-3">
+                          <Form.Label>Contact Number (Optional)</Form.Label>
+                          <Form.Control
+                            type="text"
+                            name="contactNumber"
+                            value={values.contactNumber}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            placeholder="e.g., 09123456789"
+                          />
+                        </Form.Group>
+
+                        <Button variant="primary" type="submit">
+                          <FaUserPlus className="me-2" /> Add Attendee
+                        </Button>
+                      </Form>
+                    )}
+                  </Formik>
+                </Tab>
+
+                <Tab eventKey="notify" title="Notify Attendees">
+                  <div className="p-3">
+                    <p>
+                      Send notification to all registered attendees about this
+                      event. This will send an SMS or email based on the contact
+                      information available.
+                    </p>
+                    <Button
+                      variant="primary"
+                      onClick={handleSendNotification}
+                      disabled={selectedEvent.attendees.length === 0}
+                    >
+                      <FaEnvelope className="me-2" />
+                      Send Notification to {selectedEvent.attendees.length}{" "}
+                      Attendee(s)
+                    </Button>
+                    {selectedEvent.attendees.length === 0 && (
+                      <div className="text-muted mt-2">
+                        No attendees to notify. Add attendees first.
+                      </div>
+                    )}
+                  </div>
+                </Tab>
+              </Tabs>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => setShowAttendeesModal(false)}
+          >
+            Close
+          </Button>
+        </Modal.Footer>
       </Modal>
     </Container>
   );

@@ -1,5 +1,5 @@
 // src/pages/residents/CertificateRequest.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -9,17 +9,69 @@ import {
   Button,
   Alert,
   Spinner,
+  Table,
+  Badge,
 } from "react-bootstrap";
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useAuth } from "../../contexts/AuthContext";
-import { FaFilePdf, FaFileAlt, FaIdCard } from "react-icons/fa";
+import {
+  FaFilePdf,
+  FaFileAlt,
+  FaIdCard,
+  FaDownload,
+  FaEye,
+} from "react-icons/fa";
 import { toast } from "react-toastify";
 
 const CertificateRequest = () => {
   const { currentUser } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [requestHistory, setRequestHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  // In a real app, we would fetch request history from the backend
+  useEffect(() => {
+    // Simulate API call
+    const fetchRequestHistory = async () => {
+      try {
+        setLoadingHistory(true);
+        // Simulate delay
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Sample data
+        const sampleHistory = [
+          {
+            id: 1,
+            requestId: "REQ-2023005",
+            certificateType: "barangay-clearance",
+            requestDate: "2023-07-01T09:15:00",
+            status: "completed",
+            deliveryOption: "pickup",
+            completedDate: "2023-07-02T14:30:00",
+          },
+          {
+            id: 2,
+            requestId: "REQ-2023010",
+            certificateType: "residency",
+            requestDate: "2023-07-10T11:20:00",
+            status: "pending",
+            deliveryOption: "email",
+          },
+        ];
+
+        setRequestHistory(sampleHistory);
+      } catch (error) {
+        console.error("Error fetching request history:", error);
+        toast.error("Failed to load request history");
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    fetchRequestHistory();
+  }, []);
 
   // Validation schema
   const validationSchema = Yup.object({
@@ -37,6 +89,22 @@ const CertificateRequest = () => {
       // For demonstration, we'll just simulate a successful submission
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
+      // Create a new request object
+      const newRequest = {
+        id: requestHistory.length + 1,
+        requestId: `REQ-${new Date().getFullYear()}${String(
+          Math.floor(Math.random() * 1000)
+        ).padStart(3, "0")}`,
+        certificateType: values.certificateType,
+        requestDate: new Date().toISOString(),
+        status: "pending",
+        deliveryOption: values.deliveryOption,
+        purpose: values.purpose,
+      };
+
+      // Add to history
+      setRequestHistory([newRequest, ...requestHistory]);
+
       // Show success message
       setSuccess(true);
       resetForm();
@@ -49,6 +117,56 @@ const CertificateRequest = () => {
       toast.error("Failed to submit request. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Get certificate type display name
+  const getCertificateTypeName = (type) => {
+    switch (type) {
+      case "barangay-clearance":
+        return "Barangay Clearance";
+      case "residency":
+        return "Certificate of Residency";
+      case "indigency":
+        return "Certificate of Indigency";
+      case "good-conduct":
+        return "Certificate of Good Moral Character";
+      case "business-permit":
+        return "Barangay Business Permit";
+      default:
+        return type;
+    }
+  };
+
+  // Get status badge
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "pending":
+        return <Badge bg="warning">Pending</Badge>;
+      case "approved":
+        return <Badge bg="info">Approved</Badge>;
+      case "completed":
+        return <Badge bg="success">Completed</Badge>;
+      case "rejected":
+        return <Badge bg="danger">Rejected</Badge>;
+      default:
+        return <Badge bg="secondary">{status}</Badge>;
+    }
+  };
+
+  // View request details
+  const handleViewRequest = (request) => {
+    // In a real app, this could open a modal with request details
+    toast.info(`Viewing details for request: ${request.requestId}`);
+  };
+
+  // Download certificate
+  const handleDownloadCertificate = (request) => {
+    // In a real app, this would download the certificate
+    if (request.status === "completed") {
+      toast.info(`Downloading certificate for request: ${request.requestId}`);
+    } else {
+      toast.warning("Certificate is not yet available for download");
     }
   };
 
@@ -253,11 +371,66 @@ const CertificateRequest = () => {
             <Card.Header className="bg-primary text-white">
               <h5 className="mb-0">Request History</h5>
             </Card.Header>
-            <Card.Body>
-              <p className="text-muted small mb-0">
-                You haven't made any certificate requests yet. Your request
-                history will appear here.
-              </p>
+            <Card.Body className="p-0">
+              {loadingHistory ? (
+                <div className="text-center py-4">
+                  <Spinner animation="border" variant="primary" size="sm" />
+                </div>
+              ) : requestHistory.length > 0 ? (
+                <Table responsive hover className="mb-0">
+                  <thead className="bg-light">
+                    <tr>
+                      <th>ID</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requestHistory.map((request) => (
+                      <tr key={request.id}>
+                        <td>{request.requestId}</td>
+                        <td>
+                          {
+                            getCertificateTypeName(
+                              request.certificateType
+                            ).split(" ")[0]
+                          }
+                        </td>
+                        <td>{getStatusBadge(request.status)}</td>
+                        <td>
+                          <Button
+                            variant="info"
+                            size="sm"
+                            className="me-1"
+                            title="View Details"
+                            onClick={() => handleViewRequest(request)}
+                          >
+                            <FaEye />
+                          </Button>
+                          {request.status === "completed" && (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              title="Download Certificate"
+                              onClick={() => handleDownloadCertificate(request)}
+                            >
+                              <FaDownload />
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <div className="text-center py-3">
+                  <p className="text-muted small mb-0">
+                    You haven't made any certificate requests yet. Your request
+                    history will appear here once you submit your first request.
+                  </p>
+                </div>
+              )}
             </Card.Body>
           </Card>
         </Col>

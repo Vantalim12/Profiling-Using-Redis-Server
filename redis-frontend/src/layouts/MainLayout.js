@@ -1,27 +1,21 @@
-// src/layouts/MainLayout.js - Updated with admin management links
-import React, { useState } from "react";
+// src/layouts/MainLayout.js
+import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import {
-  Container,
-  Row,
-  Col,
-  Navbar,
-  Nav,
-  Button,
-  Offcanvas,
-} from "react-bootstrap";
+import { Container, Navbar, Nav, Button, Offcanvas } from "react-bootstrap";
 import {
   FaChartBar,
   FaUsers,
-  FaHome,
   FaUserFriends,
-  FaUser,
-  FaSignOutAlt,
-  FaBars,
-  FaIdCard,
   FaFileAlt,
   FaBullhorn,
   FaCalendarAlt,
+  FaIdCard,
+  FaUser,
+  FaSignOutAlt,
+  FaBars,
+  FaTachometerAlt,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -30,14 +24,36 @@ const MainLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, logout } = useAuth();
-  const [showSidebar, setShowSidebar] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setSidebarCollapsed(true);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    // Initial check
+    handleResize();
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  const closeSidebar = () => setShowSidebar(false);
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  const closeMobileSidebar = () => setShowMobileSidebar(false);
 
   const isActive = (path) => {
     return location.pathname.startsWith(path);
@@ -52,84 +68,75 @@ const MainLayout = () => {
           <Nav.Link
             as={Link}
             to="/dashboard"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard") && !isActive("/dashboard/")
-                ? "bg-primary"
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard") && location.pathname === "/dashboard"
+                ? "active"
                 : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaChartBar className="me-3" /> Dashboard
+            <FaTachometerAlt className="nav-icon" />
+            <span className="nav-text">Dashboard</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to="/dashboard/family-heads"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/family-heads") ? "bg-primary" : ""
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard/family-heads") ? "active" : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaUserFriends className="me-3" /> Family Heads
+            <FaUserFriends className="nav-icon" />
+            <span className="nav-text">Family Heads</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to="/dashboard/residents"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/residents") ? "bg-primary" : ""
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard/residents") ? "active" : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaUsers className="me-3" /> Residents
+            <FaUsers className="nav-icon" />
+            <span className="nav-text">Residents</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to="/dashboard/documents"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/documents") ? "bg-primary" : ""
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard/documents") ? "active" : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaFileAlt className="me-3" /> Document Requests
+            <FaFileAlt className="nav-icon" />
+            <span className="nav-text">Document Requests</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to="/dashboard/announcements"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/announcements") ? "bg-primary" : ""
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard/announcements") ? "active" : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaBullhorn className="me-3" /> Announcements
+            <FaBullhorn className="nav-icon" />
+            <span className="nav-text">Announcements</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to="/dashboard/events-management"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/events-management") ? "bg-primary" : ""
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard/events-management") ? "active" : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaCalendarAlt className="me-3" /> Events
-          </Nav.Link>
-          <Nav.Link
-            as={Link}
-            to="/dashboard/certificates"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/certificates") ? "bg-primary" : ""
-            }`}
-            onClick={closeSidebar}
-          >
-            <FaFileAlt className="me-3" /> Certificates
-          </Nav.Link>
-          <Nav.Link
-            as={Link}
-            to="/dashboard/profile"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/profile") ? "bg-primary" : ""
-            }`}
-            onClick={closeSidebar}
-          >
-            <FaUser className="me-3" /> Account Settings
+            <FaCalendarAlt className="nav-icon" />
+            <span className="nav-text">Events</span>
           </Nav.Link>
         </>
       );
@@ -141,66 +148,65 @@ const MainLayout = () => {
           <Nav.Link
             as={Link}
             to="/dashboard"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard") && !isActive("/dashboard/")
-                ? "bg-primary"
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard") && location.pathname === "/dashboard"
+                ? "active"
                 : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaHome className="me-3" /> Dashboard
+            <FaChartBar className="nav-icon" />
+            <span className="nav-text">Dashboard</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to={`/dashboard/residents/view/${currentUser.residentId}`}
-            className={`d-flex align-items-center py-3 px-3 ${
+            className={`nav-item d-flex align-items-center ${
               isActive(`/dashboard/residents/view/${currentUser.residentId}`)
-                ? "bg-primary"
+                ? "active"
                 : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaIdCard className="me-3" /> My Profile
+            <FaIdCard className="nav-icon" />
+            <span className="nav-text">My Profile</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to="/dashboard/certificates"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/certificates") ? "bg-primary" : ""
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard/certificates") ? "active" : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaFileAlt className="me-3" /> Certificates
+            <FaFileAlt className="nav-icon" />
+            <span className="nav-text">Certificates</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to="/dashboard/announcements"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/announcements") ? "bg-primary" : ""
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard/announcements") ? "active" : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaBullhorn className="me-3" /> Announcements
+            <FaBullhorn className="nav-icon" />
+            <span className="nav-text">Announcements</span>
           </Nav.Link>
+
           <Nav.Link
             as={Link}
             to="/dashboard/events"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/events") ? "bg-primary" : ""
+            className={`nav-item d-flex align-items-center ${
+              isActive("/dashboard/events") ? "active" : ""
             }`}
-            onClick={closeSidebar}
+            onClick={closeMobileSidebar}
           >
-            <FaCalendarAlt className="me-3" /> Events
-          </Nav.Link>
-          <Nav.Link
-            as={Link}
-            to="/dashboard/profile"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/profile") ? "bg-primary" : ""
-            }`}
-            onClick={closeSidebar}
-          >
-            <FaUser className="me-3" /> Account Settings
+            <FaCalendarAlt className="nav-icon" />
+            <span className="nav-text">Events</span>
           </Nav.Link>
         </>
       );
@@ -208,93 +214,145 @@ const MainLayout = () => {
 
     // Default navigation for any other roles
     return (
-      <>
-        <Nav.Link
-          as={Link}
-          to="/dashboard"
-          className={`d-flex align-items-center py-3 px-3 ${
-            isActive("/dashboard") ? "bg-primary" : ""
-          }`}
-          onClick={closeSidebar}
-        >
-          <FaHome className="me-3" /> Dashboard
-        </Nav.Link>
-        <Nav.Link
-          as={Link}
-          to="/dashboard/profile"
-          className={`d-flex align-items-center py-3 px-3 ${
-            isActive("/dashboard/profile") ? "bg-primary" : ""
-          }`}
-          onClick={closeSidebar}
-        >
-          <FaUser className="me-3" /> Profile
-        </Nav.Link>
-      </>
+      <Nav.Link
+        as={Link}
+        to="/dashboard"
+        className={`nav-item d-flex align-items-center ${
+          isActive("/dashboard") ? "active" : ""
+        }`}
+        onClick={closeMobileSidebar}
+      >
+        <FaChartBar className="nav-icon" />
+        <span className="nav-text">Dashboard</span>
+      </Nav.Link>
     );
   };
 
   return (
-    <div className="d-flex flex-column min-vh-100">
-      {/* Top Navbar */}
-      <Navbar bg="primary" variant="dark" expand="lg" className="px-3">
-        <Button
-          variant="primary"
-          className="d-lg-none me-2"
-          onClick={() => setShowSidebar(!showSidebar)}
-        >
-          <FaBars />
-        </Button>
-        <Navbar.Brand as={Link} to="/dashboard">
-          Barangay Management System
-        </Navbar.Brand>
+    <div className="d-flex min-vh-100">
+      {/* Sidebar for desktop */}
+      <div
+        className={`sidebar d-none d-md-flex ${
+          sidebarCollapsed ? "collapsed" : ""
+        }`}
+      >
+        <div className="sidebar-header">
+          <div className="logo-container">
+            {!sidebarCollapsed && (
+              <h4 className="text-white mb-0">Barangay Management</h4>
+            )}
+            {sidebarCollapsed && <h4 className="text-white mb-0">BMS</h4>}
+          </div>
+          <Button
+            variant="outline-light"
+            size="sm"
+            className="collapse-btn"
+            onClick={toggleSidebar}
+          >
+            {sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+          </Button>
+        </div>
 
-        <Navbar.Toggle aria-controls="basic-navbar-nav" />
-        <Navbar.Collapse id="basic-navbar-nav" className="justify-content-end">
-          <Nav>
-            <Nav.Item className="d-flex align-items-center text-white me-3">
-              <FaUser className="me-2" /> {currentUser?.name || "User"}
-              {currentUser?.role && (
-                <span className="ms-2 badge bg-light text-dark">
-                  {currentUser.role}
-                </span>
-              )}
-            </Nav.Item>
-            <Button variant="outline-light" size="sm" onClick={handleLogout}>
-              <FaSignOutAlt className="me-2" /> Logout
-            </Button>
-          </Nav>
-        </Navbar.Collapse>
-      </Navbar>
+        <Nav className="sidebar-nav flex-column">{renderNavItems()}</Nav>
 
-      <Container fluid className="flex-grow-1 px-0">
-        <Row className="g-0 h-100">
-          {/* Sidebar - Desktop */}
-          <Col lg={3} xl={2} className="bg-dark text-white d-none d-lg-block">
-            <Nav className="flex-column py-3">{renderNavItems()}</Nav>
-          </Col>
+        <div className="sidebar-footer">
+          <div className="user-info">
+            {!sidebarCollapsed && (
+              <div className="user-details">
+                <div className="user-name">{currentUser?.name}</div>
+                <div className="user-role">{currentUser?.role}</div>
+              </div>
+            )}
+          </div>
 
-          {/* Sidebar - Mobile */}
+          <Nav.Link
+            as={Link}
+            to="/dashboard/profile"
+            className={`profile-link ${
+              isActive("/dashboard/profile") ? "active" : ""
+            }`}
+          >
+            <FaUser className="nav-icon" />
+            <span className="nav-text">Profile</span>
+          </Nav.Link>
+
+          <Button
+            variant="outline-light"
+            size="sm"
+            className="logout-btn"
+            onClick={handleLogout}
+          >
+            <FaSignOutAlt className="nav-icon" />
+            <span className="nav-text">Logout</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Mobile navbar and sidebar */}
+      <Navbar bg="primary" variant="dark" expand="lg" className="d-md-none">
+        <Container fluid>
+          <Navbar.Brand as={Link} to="/dashboard">
+            Barangay Management
+          </Navbar.Brand>
+          <Navbar.Toggle
+            aria-controls="sidebar-nav"
+            onClick={() => setShowMobileSidebar(true)}
+          >
+            <FaBars />
+          </Navbar.Toggle>
+
           <Offcanvas
-            show={showSidebar}
-            onHide={closeSidebar}
-            responsive="lg"
-            className="bg-dark text-white"
-            style={{ width: "250px" }}
+            show={showMobileSidebar}
+            onHide={() => setShowMobileSidebar(false)}
+            placement="start"
+            className="bg-primary text-white"
+            style={{ width: "260px" }}
           >
             <Offcanvas.Header closeButton closeVariant="white">
-              <Offcanvas.Title>Menu</Offcanvas.Title>
+              <Offcanvas.Title>Barangay Management</Offcanvas.Title>
             </Offcanvas.Header>
             <Offcanvas.Body className="p-0">
-              <Nav className="flex-column">{renderNavItems()}</Nav>
+              <Nav className="flex-column sidebar-nav">{renderNavItems()}</Nav>
+
+              <div className="sidebar-footer">
+                <div className="user-info">
+                  <div className="user-details">
+                    <div className="user-name">{currentUser?.name}</div>
+                    <div className="user-role">{currentUser?.role}</div>
+                  </div>
+                </div>
+
+                <Nav.Link
+                  as={Link}
+                  to="/dashboard/profile"
+                  className={`profile-link ${
+                    isActive("/dashboard/profile") ? "active" : ""
+                  }`}
+                  onClick={closeMobileSidebar}
+                >
+                  <FaUser className="nav-icon" />
+                  <span className="nav-text">Profile</span>
+                </Nav.Link>
+
+                <Button
+                  variant="outline-light"
+                  size="sm"
+                  className="logout-btn"
+                  onClick={handleLogout}
+                >
+                  <FaSignOutAlt className="nav-icon" />
+                  <span className="nav-text">Logout</span>
+                </Button>
+              </div>
             </Offcanvas.Body>
           </Offcanvas>
+        </Container>
+      </Navbar>
 
-          {/* Main Content */}
-          <Col lg={9} xl={10} className="px-4 py-4">
-            <Outlet />
-          </Col>
-        </Row>
-      </Container>
+      {/* Main content */}
+      <div className={`content-wrapper ${sidebarCollapsed ? "expanded" : ""}`}>
+        <Outlet />
+      </div>
     </div>
   );
 };

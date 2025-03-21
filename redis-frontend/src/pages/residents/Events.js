@@ -1,5 +1,5 @@
 // src/pages/residents/Events.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -10,6 +10,9 @@ import {
   Form,
   InputGroup,
   Table,
+  Modal,
+  Spinner,
+  Alert,
 } from "react-bootstrap";
 import {
   FaSearch,
@@ -18,14 +21,26 @@ import {
   FaClock,
   FaUserFriends,
   FaFilter,
+  FaCheck,
+  FaUserPlus,
+  FaRegCalendarCheck,
 } from "react-icons/fa";
+import { useAuth } from "../../contexts/AuthContext";
+import { toast } from "react-toastify";
 
 const Events = () => {
+  const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMonth, setFilterMonth] = useState("all");
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [registering, setRegistering] = useState(false);
+  const [myRegistrations, setMyRegistrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [persistentEvents, setPersistentEvents] = useState([]);
 
   // Sample events data
-  const events = [
+  const [events, setEvents] = useState([
     {
       id: 1,
       title: "Barangay Assembly Meeting",
@@ -35,6 +50,10 @@ const Events = () => {
       category: "meeting",
       description:
         "Quarterly barangay assembly meeting to discuss community issues and upcoming projects.",
+      attendees: [
+        { id: "R-2023001", name: "John Doe", contactNumber: "09123456789" },
+        { id: "R-2023002", name: "Jane Smith", contactNumber: "09234567890" },
+      ],
     },
     {
       id: 2,
@@ -45,6 +64,14 @@ const Events = () => {
       category: "health",
       description:
         "Free medical check-ups and consultations. Services include blood pressure monitoring, blood sugar screening, dental check-up, and eye examination.",
+      attendees: [
+        { id: "R-2023001", name: "John Doe", contactNumber: "09123456789" },
+        {
+          id: "R-2023003",
+          name: "Robert Johnson",
+          contactNumber: "09345678901",
+        },
+      ],
     },
     {
       id: 3,
@@ -55,6 +82,7 @@ const Events = () => {
       category: "training",
       description:
         "Basic entrepreneurship skills training and product development workshop. Registration required.",
+      attendees: [],
     },
     {
       id: 4,
@@ -65,6 +93,9 @@ const Events = () => {
       category: "environment",
       description:
         "Monthly community clean-up drive. Please bring your own gloves and cleaning materials.",
+      attendees: [
+        { id: "R-2023002", name: "Jane Smith", contactNumber: "09234567890" },
+      ],
     },
     {
       id: 5,
@@ -75,6 +106,7 @@ const Events = () => {
       category: "social",
       description:
         "Special program for senior citizens including health talks, games, and distribution of benefits.",
+      attendees: [],
     },
     {
       id: 6,
@@ -85,8 +117,43 @@ const Events = () => {
       category: "sports",
       description:
         "Basketball and volleyball tournament for barangay youth. Registration is open until August 25.",
+      attendees: [],
     },
-  ];
+  ]);
+
+  // Initialize events and find user registrations
+  useEffect(() => {
+    setLoading(true);
+
+    // On first load, store events in persistent state
+    if (persistentEvents.length === 0 && events.length > 0) {
+      setPersistentEvents(events);
+    } else if (persistentEvents.length > 0) {
+      setEvents(persistentEvents);
+    }
+
+    // Find user registrations
+    if (currentUser?.residentId) {
+      const userAttendances = [];
+      events.forEach((event) => {
+        const isRegistered = event.attendees.some(
+          (attendee) => attendee.id === currentUser.residentId
+        );
+        if (isRegistered) {
+          userAttendances.push({
+            eventId: event.id,
+            title: event.title,
+            date: event.date,
+            time: event.time,
+            category: event.category,
+          });
+        }
+      });
+      setMyRegistrations(userAttendances);
+    }
+
+    setLoading(false);
+  }, [currentUser, persistentEvents]);
 
   // Get unique months from events
   const months = [
@@ -152,9 +219,195 @@ const Events = () => {
     }
   };
 
+  // Open registration modal
+  const openRegistrationModal = (event) => {
+    setSelectedEvent(event);
+    setShowRegistrationModal(true);
+  };
+
+  // Check if user is registered for an event
+  const isRegisteredForEvent = (eventId) => {
+    return myRegistrations.some((reg) => reg.eventId === eventId);
+  };
+
+  // Handle event registration
+  const handleRegisterForEvent = async () => {
+    if (!currentUser) {
+      toast.error("You must be logged in to register for events");
+      return;
+    }
+
+    try {
+      setRegistering(true);
+
+      // Simulate API request
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Check if already registered
+      const isAlreadyRegistered = selectedEvent.attendees.some(
+        (attendee) => attendee.id === currentUser.residentId
+      );
+
+      if (isAlreadyRegistered) {
+        toast.warning("You are already registered for this event");
+        setRegistering(false);
+        return;
+      }
+
+      // Add user to attendees
+      const newAttendee = {
+        id: currentUser.residentId,
+        name: currentUser.name,
+        contactNumber: "", // We could store this in the user profile
+      };
+
+      // Update events state
+      const updatedEvents = events.map((event) => {
+        if (event.id === selectedEvent.id) {
+          return {
+            ...event,
+            attendees: [...event.attendees, newAttendee],
+          };
+        }
+        return event;
+      });
+
+      setEvents(updatedEvents);
+      setPersistentEvents(updatedEvents);
+
+      // Update myRegistrations
+      setMyRegistrations([
+        ...myRegistrations,
+        {
+          eventId: selectedEvent.id,
+          title: selectedEvent.title,
+          date: selectedEvent.date,
+          time: selectedEvent.time,
+          category: selectedEvent.category,
+        },
+      ]);
+
+      toast.success("You have successfully registered for this event");
+      setShowRegistrationModal(false);
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast.error("Failed to register for the event. Please try again.");
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  // Cancel registration
+  const handleCancelRegistration = async (eventId) => {
+    if (
+      window.confirm(
+        "Are you sure you want to cancel your registration for this event?"
+      )
+    ) {
+      try {
+        setLoading(true);
+
+        // Simulate API request
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        // Update events state
+        const updatedEvents = events.map((event) => {
+          if (event.id === eventId) {
+            return {
+              ...event,
+              attendees: event.attendees.filter(
+                (attendee) => attendee.id !== currentUser.residentId
+              ),
+            };
+          }
+          return event;
+        });
+
+        setEvents(updatedEvents);
+        setPersistentEvents(updatedEvents);
+
+        // Update myRegistrations
+        setMyRegistrations(
+          myRegistrations.filter((reg) => reg.eventId !== eventId)
+        );
+
+        toast.success("Your registration has been canceled");
+      } catch (error) {
+        console.error("Cancellation error:", error);
+        toast.error("Failed to cancel registration. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <Container>
       <h2 className="mb-4">Events Calendar</h2>
+
+      {/* My Registrations */}
+      <Card className="shadow-sm mb-4">
+        <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">My Event Registrations</h5>
+          <Badge bg="light" text="dark">
+            {myRegistrations.length}
+          </Badge>
+        </Card.Header>
+        <Card.Body className="p-0">
+          {loading ? (
+            <div className="text-center py-4">
+              <Spinner animation="border" variant="primary" size="sm" />
+            </div>
+          ) : myRegistrations.length > 0 ? (
+            <Table responsive hover className="mb-0">
+              <thead className="bg-light">
+                <tr>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Category</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {myRegistrations.map((registration) => {
+                  const event = events.find(
+                    (e) => e.id === registration.eventId
+                  );
+                  return (
+                    <tr key={registration.eventId}>
+                      <td>{registration.title}</td>
+                      <td>
+                        {new Date(registration.date).toLocaleDateString()}
+                      </td>
+                      <td>{registration.time}</td>
+                      <td>{getCategoryBadge(registration.category)}</td>
+                      <td>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() =>
+                            handleCancelRegistration(registration.eventId)
+                          }
+                          disabled={loading}
+                        >
+                          Cancel Registration
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          ) : (
+            <div className="p-4 text-center">
+              <p className="mb-0 text-muted">
+                You haven't registered for any events yet.
+              </p>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
 
       <Row className="mb-4">
         <Col md={6}>
@@ -231,15 +484,30 @@ const Events = () => {
                         <span>{event.time}</span>
                       </div>
 
-                      <div className="d-flex align-items-center">
+                      <div className="d-flex align-items-center mb-3">
                         <FaMapMarkerAlt className="text-danger me-2" />
                         <span>{event.location}</span>
                       </div>
+
+                      <div className="d-flex align-items-center text-muted mb-3">
+                        <FaUserFriends className="me-2" />
+                        <span>{event.attendees.length} people registered</span>
+                      </div>
                     </Card.Body>
                     <Card.Footer>
-                      <Button variant="outline-primary" size="sm">
-                        <FaUserFriends className="me-2" /> Register to Attend
-                      </Button>
+                      {isRegisteredForEvent(event.id) ? (
+                        <Button variant="success" className="w-100" disabled>
+                          <FaCheck className="me-2" /> Registered
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline-primary"
+                          className="w-100"
+                          onClick={() => openRegistrationModal(event)}
+                        >
+                          <FaUserPlus className="me-2" /> Register to Attend
+                        </Button>
+                      )}
                     </Card.Footer>
                   </Card>
                 </Col>
@@ -258,6 +526,83 @@ const Events = () => {
         </Card>
       )}
 
+      {/* Event Registration Modal */}
+      <Modal
+        show={showRegistrationModal}
+        onHide={() => setShowRegistrationModal(false)}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <FaRegCalendarCheck className="me-2" /> Event Registration
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedEvent && (
+            <>
+              <h5>{selectedEvent.title}</h5>
+              <div className="mb-3">
+                <div className="d-flex align-items-center mb-2">
+                  <FaCalendarAlt className="text-primary me-2" />
+                  <span>
+                    {new Date(selectedEvent.date).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+                <div className="d-flex align-items-center mb-2">
+                  <FaClock className="text-success me-2" />
+                  <span>{selectedEvent.time}</span>
+                </div>
+                <div className="d-flex align-items-center mb-3">
+                  <FaMapMarkerAlt className="text-danger me-2" />
+                  <span>{selectedEvent.location}</span>
+                </div>
+              </div>
+
+              <Alert variant="info">
+                <p className="mb-0">
+                  <strong>Your registration information:</strong>
+                </p>
+                <p className="mb-0">Name: {currentUser?.name}</p>
+                <p className="mb-0">Resident ID: {currentUser?.residentId}</p>
+              </Alert>
+
+              <p className="mb-0">
+                By registering, you confirm your attendance to this event. The
+                barangay may contact you with updates or reminders about this
+                event.
+              </p>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="secondary"
+            onClick={() => setShowRegistrationModal(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleRegisterForEvent}
+            disabled={registering}
+          >
+            {registering ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Registering...
+              </>
+            ) : (
+              "Confirm Registration"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Calendar View Section */}
       <Card className="shadow-sm mt-4">
         <Card.Header className="bg-primary text-white">
           <h5 className="mb-0">Calendar View</h5>
@@ -333,9 +678,20 @@ const Events = () => {
               </tr>
             </tbody>
           </Table>
-          <p className="small text-muted mb-0">
-            * Calendar dates with events are highlighted
-          </p>
+          <div className="d-flex align-items-center mt-2">
+            <div className="me-3">
+              <span className="badge bg-primary">*</span> Barangay Assembly
+              Meeting
+            </div>
+            <div className="me-3">
+              <span className="badge bg-success">*</span> Health and Wellness
+              Day
+            </div>
+            <div>
+              <span className="badge bg-info">*</span> Livelihood Training
+              Workshop
+            </div>
+          </div>
         </Card.Body>
       </Card>
     </Container>
