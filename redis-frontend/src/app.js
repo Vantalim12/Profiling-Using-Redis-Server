@@ -43,6 +43,10 @@ import UserProfile from "./pages/profile/UserProfile.js";
 // NotFound Page
 import NotFound from "./pages/NotFound.js";
 
+import AnnouncementsList from "./pages/announcements/AnnouncementsList";
+import AnnouncementsDisplay from "./pages/announcements/AnnouncementsDisplay";
+import EventsList from "./pages/events/EventsList";
+import EventsDisplay from "./pages/events/EventsDisplay";
 // Protected Route Component
 const ProtectedRoute = ({ children, requireAdmin }) => {
   const { isAuthenticated, loading, currentUser } = useAuth();
@@ -120,6 +124,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Announcements Routes */}
+          <Route path="announcements">
+            <Route index element={<AnnouncementsList />} />
+            <Route path="display" element={<AnnouncementsDisplay />} />
+          </Route>
+
+          {/* Events Routes */}
+          <Route path="events">
+            <Route index element={<EventsList />} />
+            <Route path="display" element={<EventsDisplay />} />
+          </Route>
         </Route>
 
         {/* Residents Routes */}

@@ -7,7 +7,9 @@ const authRoutes = require("./routes/auth");
 const residentRoutes = require("./routes/residents");
 const familyHeadRoutes = require("./routes/familyHeads");
 const dashboardRoutes = require("./routes/dashboard");
-
+const announcementRoutes = require("./routes/announcements");
+const eventRoutes = require("./routes/events");
+const documentRoutes = require("./routes/documents");
 // Create Express app
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -71,7 +73,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/residents", residentRoutes);
 app.use("/api/familyHeads", familyHeadRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-
+app.use("/api/announcements", announcementRoutes);
+app.use("/api/events", eventRoutes);
+app.use("/api/documents", documentRoutes);
 // Root route
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to Barangay Management System API" });
