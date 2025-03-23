@@ -1,4 +1,4 @@
-// src/pages/admin/DocumentRequests.js
+// src/pages/admin/DocumentRequests.js - Fixed implementation
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -23,10 +23,8 @@ import {
   FaFilter,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { documentRequestService } from "../../services/api";
 import { CSVLink } from "react-csv";
-
-// We would typically import a service for the API calls
-// import { certificateService } from "../../services/api";
 
 const DocumentRequests = () => {
   const [loading, setLoading] = useState(false);
@@ -36,78 +34,25 @@ const DocumentRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [documentRequests, setDocumentRequests] = useState([]);
 
-  // Sample document requests data (in a real app, this would come from the API)
-  const [documentRequests, setDocumentRequests] = useState([
-    {
-      id: 1,
-      requestId: "REQ-2023001",
-      residentId: "R-2023001",
-      residentName: "John Doe",
-      certificateType: "barangay-clearance",
-      purpose: "Employment requirement",
-      requestDate: "2023-07-15T10:30:00",
-      status: "pending",
-      deliveryOption: "pickup",
-    },
-    {
-      id: 2,
-      requestId: "REQ-2023002",
-      residentId: "R-2023002",
-      residentName: "Jane Smith",
-      certificateType: "residency",
-      purpose: "School enrollment",
-      requestDate: "2023-07-16T14:45:00",
-      status: "approved",
-      deliveryOption: "email",
-      approvedDate: "2023-07-17T09:20:00",
-      approvedBy: "Admin",
-    },
-    {
-      id: 3,
-      requestId: "REQ-2023003",
-      residentId: "R-2023003",
-      residentName: "Robert Johnson",
-      certificateType: "indigency",
-      purpose: "Medical assistance",
-      requestDate: "2023-07-17T08:15:00",
-      status: "completed",
-      deliveryOption: "pickup",
-      approvedDate: "2023-07-17T10:30:00",
-      completedDate: "2023-07-18T14:00:00",
-      approvedBy: "Admin",
-    },
-    {
-      id: 4,
-      requestId: "REQ-2023004",
-      residentId: "R-2023004",
-      residentName: "Sarah Williams",
-      certificateType: "good-conduct",
-      purpose: "Overseas employment",
-      requestDate: "2023-07-18T11:20:00",
-      status: "rejected",
-      rejectionReason: "Incomplete information provided",
-      rejectedDate: "2023-07-19T09:45:00",
-      rejectedBy: "Admin",
-    },
-  ]);
+  // Fetch document requests on component mount
+  useEffect(() => {
+    fetchDocumentRequests();
+  }, []);
 
-  // In a real application, we would fetch the document requests on component mount
-  // useEffect(() => {
-  //   const fetchDocumentRequests = async () => {
-  //     try {
-  //       setLoading(true);
-  //       const response = await certificateService.getAllRequests();
-  //       setDocumentRequests(response.data);
-  //     } catch (error) {
-  //       console.error("Error fetching document requests:", error);
-  //       toast.error("Failed to load document requests");
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
-  //   fetchDocumentRequests();
-  // }, []);
+  const fetchDocumentRequests = async () => {
+    try {
+      setLoading(true);
+      const response = await documentRequestService.getAll();
+      setDocumentRequests(response.data);
+    } catch (error) {
+      console.error("Error fetching document requests:", error);
+      toast.error("Failed to load document requests");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Get certificate type display name
   const getCertificateTypeName = (type) => {
@@ -146,11 +91,16 @@ const DocumentRequests = () => {
   // Filter document requests
   const filteredRequests = documentRequests.filter((request) => {
     const matchesSearch =
-      request.requestId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.residentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getCertificateTypeName(request.certificateType)
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      (request.requestId &&
+        request.requestId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (request.residentName &&
+        request.residentName
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())) ||
+      (request.documentType &&
+        getCertificateTypeName(request.documentType)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()));
 
     const matchesStatus =
       filterStatus === "all" || request.status === filterStatus;
@@ -160,26 +110,29 @@ const DocumentRequests = () => {
 
   // Prepare data for CSV export
   const exportData = filteredRequests.map((request) => ({
-    "Request ID": request.requestId,
-    "Resident ID": request.residentId,
-    "Resident Name": request.residentName,
-    "Certificate Type": getCertificateTypeName(request.certificateType),
-    "Request Date": new Date(request.requestDate).toLocaleString(),
-    Status: request.status,
-    "Delivery Method": request.deliveryOption,
-    Purpose: request.purpose,
-    ...(request.approvedDate
-      ? { "Approved Date": new Date(request.approvedDate).toLocaleString() }
-      : {}),
-    ...(request.completedDate
-      ? { "Completed Date": new Date(request.completedDate).toLocaleString() }
-      : {}),
-    ...(request.rejectedDate
-      ? { "Rejected Date": new Date(request.rejectedDate).toLocaleString() }
-      : {}),
-    ...(request.rejectionReason
-      ? { "Rejection Reason": request.rejectionReason }
-      : {}),
+    "Request ID": request.requestId || "",
+    "Resident ID": request.residentId || "",
+    "Resident Name": request.residentName || "",
+    "Certificate Type": getCertificateTypeName(request.documentType || ""),
+    "Request Date": request.requestDate
+      ? new Date(request.requestDate).toLocaleString()
+      : "",
+    Status: request.status || "",
+    "Delivery Method": request.deliveryOption || "",
+    Purpose: request.purpose || "",
+    "Approved Date":
+      request.processingDate && request.status === "approved"
+        ? new Date(request.processingDate).toLocaleString()
+        : "",
+    "Completed Date":
+      request.processingDate && request.status === "completed"
+        ? new Date(request.processingDate).toLocaleString()
+        : "",
+    "Rejected Date":
+      request.processingDate && request.status === "rejected"
+        ? new Date(request.processingDate).toLocaleString()
+        : "",
+    "Rejection Reason": request.processingNotes || "",
   }));
 
   // CSV headers
@@ -211,50 +164,49 @@ const DocumentRequests = () => {
   };
 
   // Approve request
-  const handleApproveRequest = (requestId) => {
-    // In a real app, this would be an API call
-    setLoading(true);
-    setTimeout(() => {
-      const updatedRequests = documentRequests.map((req) => {
-        if (req.id === requestId) {
-          return {
-            ...req,
-            status: "approved",
-            approvedDate: new Date().toISOString(),
-            approvedBy: "Admin",
-          };
-        }
-        return req;
+  const handleApproveRequest = async (requestId) => {
+    try {
+      setLoading(true);
+
+      await documentRequestService.updateStatus(requestId, {
+        status: "approved",
+        processingNotes: "Application approved",
       });
 
-      setDocumentRequests(updatedRequests);
-      setLoading(false);
-      handleCloseModal();
       toast.success("Request approved successfully");
-    }, 1000);
+
+      // Refresh requests
+      fetchDocumentRequests();
+      handleCloseModal();
+    } catch (error) {
+      console.error("Error approving request:", error);
+      toast.error("Failed to approve request");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Complete request
-  const handleCompleteRequest = (requestId) => {
-    // In a real app, this would be an API call
-    setLoading(true);
-    setTimeout(() => {
-      const updatedRequests = documentRequests.map((req) => {
-        if (req.id === requestId) {
-          return {
-            ...req,
-            status: "completed",
-            completedDate: new Date().toISOString(),
-          };
-        }
-        return req;
+  const handleCompleteRequest = async (requestId) => {
+    try {
+      setLoading(true);
+
+      await documentRequestService.updateStatus(requestId, {
+        status: "completed",
+        processingNotes: "Certificate has been issued",
       });
 
-      setDocumentRequests(updatedRequests);
-      setLoading(false);
-      handleCloseModal();
       toast.success("Request marked as completed");
-    }, 1000);
+
+      // Refresh requests
+      fetchDocumentRequests();
+      handleCloseModal();
+    } catch (error) {
+      console.error("Error completing request:", error);
+      toast.error("Failed to complete request");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Show rejection modal
@@ -269,34 +221,32 @@ const DocumentRequests = () => {
   };
 
   // Reject request
-  const handleRejectRequest = () => {
+  const handleRejectRequest = async () => {
     if (!rejectionReason.trim()) {
       toast.error("Please provide a reason for rejection");
       return;
     }
 
-    // In a real app, this would be an API call
-    setLoading(true);
-    setTimeout(() => {
-      const updatedRequests = documentRequests.map((req) => {
-        if (req.id === selectedRequest.id) {
-          return {
-            ...req,
-            status: "rejected",
-            rejectionReason,
-            rejectedDate: new Date().toISOString(),
-            rejectedBy: "Admin",
-          };
-        }
-        return req;
+    try {
+      setLoading(true);
+
+      await documentRequestService.updateStatus(selectedRequest.id, {
+        status: "rejected",
+        processingNotes: rejectionReason,
       });
 
-      setDocumentRequests(updatedRequests);
-      setLoading(false);
+      toast.info("Request rejected");
+
+      // Refresh requests
+      fetchDocumentRequests();
       handleCloseRejectModal();
       handleCloseModal();
-      toast.info("Request rejected");
-    }, 1000);
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      toast.error("Failed to reject request");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Print certificate function
@@ -343,85 +293,97 @@ const DocumentRequests = () => {
         </Col>
 
         <Col md={3} className="text-md-end">
-          <CSVLink
-            data={exportData}
-            headers={csvHeaders}
-            filename={"document-requests.csv"}
-            className="btn btn-primary"
-          >
-            <FaDownload className="me-2" /> Export to CSV
-          </CSVLink>
+          {filteredRequests.length > 0 && (
+            <CSVLink
+              data={exportData}
+              headers={csvHeaders}
+              filename={"document-requests.csv"}
+              className="btn btn-primary"
+            >
+              <FaDownload className="me-2" /> Export to CSV
+            </CSVLink>
+          )}
         </Col>
       </Row>
 
       <Card className="shadow-sm">
         <Card.Body className="p-0">
-          <Table responsive hover className="mb-0">
-            <thead className="bg-light">
-              <tr>
-                <th>Request ID</th>
-                <th>Resident</th>
-                <th>Document Type</th>
-                <th>Request Date</th>
-                <th>Status</th>
-                <th>Delivery Method</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRequests.length > 0 ? (
-                filteredRequests.map((request) => (
-                  <tr key={request.id}>
-                    <td>{request.requestId}</td>
-                    <td>{request.residentName}</td>
-                    <td>{getCertificateTypeName(request.certificateType)}</td>
-                    <td>{new Date(request.requestDate).toLocaleString()}</td>
-                    <td>{getStatusBadge(request.status)}</td>
-                    <td className="text-capitalize">
-                      {request.deliveryOption}
-                    </td>
-                    <td>
-                      <Button
-                        variant="info"
-                        size="sm"
-                        className="me-1"
-                        onClick={() => handleViewDetails(request)}
-                      >
-                        <FaEye />
-                      </Button>
-
-                      {request.status === "approved" && (
+          {loading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" />
+            </div>
+          ) : (
+            <Table responsive hover className="mb-0">
+              <thead className="bg-light">
+                <tr>
+                  <th>Request ID</th>
+                  <th>Resident</th>
+                  <th>Document Type</th>
+                  <th>Request Date</th>
+                  <th>Status</th>
+                  <th>Delivery Method</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRequests.length > 0 ? (
+                  filteredRequests.map((request) => (
+                    <tr key={request.id}>
+                      <td>{request.requestId}</td>
+                      <td>{request.residentName}</td>
+                      <td>{getCertificateTypeName(request.documentType)}</td>
+                      <td>
+                        {request.requestDate
+                          ? new Date(request.requestDate).toLocaleString()
+                          : ""}
+                      </td>
+                      <td>{getStatusBadge(request.status)}</td>
+                      <td className="text-capitalize">
+                        {request.deliveryOption}
+                      </td>
+                      <td>
                         <Button
-                          variant="success"
+                          variant="info"
                           size="sm"
                           className="me-1"
-                          onClick={() => handleCompleteRequest(request.id)}
+                          onClick={() => handleViewDetails(request)}
                         >
-                          <FaCheck />
+                          <FaEye />
                         </Button>
-                      )}
 
-                      {request.status === "completed" && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => handlePrintCertificate(request.id)}
-                        >
-                          <FaPrint />
-                        </Button>
-                      )}
+                        {request.status === "approved" && (
+                          <Button
+                            variant="success"
+                            size="sm"
+                            className="me-1"
+                            onClick={() => handleCompleteRequest(request.id)}
+                          >
+                            <FaCheck />
+                          </Button>
+                        )}
+
+                        {request.status === "completed" && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handlePrintCertificate(request.id)}
+                          >
+                            <FaPrint />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="text-center py-3">
+                      No document requests found matching your criteria.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="text-center py-3">
-                    No document requests found matching your criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+                )}
+              </tbody>
+            </Table>
+          )}
         </Card.Body>
       </Card>
 
@@ -445,7 +407,7 @@ const DocumentRequests = () => {
                   </p>
                   <p>
                     <strong>Document Type:</strong>{" "}
-                    {getCertificateTypeName(selectedRequest.certificateType)}
+                    {getCertificateTypeName(selectedRequest.documentType)}
                   </p>
                   <p>
                     <strong>Purpose:</strong> {selectedRequest.purpose}
@@ -454,7 +416,9 @@ const DocumentRequests = () => {
                 <Col md={6}>
                   <p>
                     <strong>Request Date:</strong>{" "}
-                    {new Date(selectedRequest.requestDate).toLocaleString()}
+                    {selectedRequest.requestDate
+                      ? new Date(selectedRequest.requestDate).toLocaleString()
+                      : ""}
                   </p>
                   <p>
                     <strong>Status:</strong>{" "}
@@ -470,7 +434,11 @@ const DocumentRequests = () => {
                   {selectedRequest.status === "approved" && (
                     <p>
                       <strong>Approved Date:</strong>{" "}
-                      {new Date(selectedRequest.approvedDate).toLocaleString()}
+                      {selectedRequest.processingDate
+                        ? new Date(
+                            selectedRequest.processingDate
+                          ).toLocaleString()
+                        : ""}
                     </p>
                   )}
 
@@ -478,15 +446,11 @@ const DocumentRequests = () => {
                     <>
                       <p>
                         <strong>Approved Date:</strong>{" "}
-                        {new Date(
-                          selectedRequest.approvedDate
-                        ).toLocaleString()}
-                      </p>
-                      <p>
-                        <strong>Completed Date:</strong>{" "}
-                        {new Date(
-                          selectedRequest.completedDate
-                        ).toLocaleString()}
+                        {selectedRequest.processingDate
+                          ? new Date(
+                              selectedRequest.processingDate
+                            ).toLocaleString()
+                          : ""}
                       </p>
                     </>
                   )}
@@ -495,18 +459,28 @@ const DocumentRequests = () => {
                     <>
                       <p>
                         <strong>Rejected Date:</strong>{" "}
-                        {new Date(
-                          selectedRequest.rejectedDate
-                        ).toLocaleString()}
+                        {selectedRequest.processingDate
+                          ? new Date(
+                              selectedRequest.processingDate
+                            ).toLocaleString()
+                          : ""}
                       </p>
                       <p>
                         <strong>Rejection Reason:</strong>{" "}
-                        {selectedRequest.rejectionReason}
+                        {selectedRequest.processingNotes}
                       </p>
                     </>
                   )}
                 </Col>
               </Row>
+
+              {selectedRequest.additionalDetails && (
+                <>
+                  <hr />
+                  <h6>Additional Details:</h6>
+                  <p>{selectedRequest.additionalDetails}</p>
+                </>
+              )}
 
               {selectedRequest.status === "pending" && (
                 <>

@@ -1,4 +1,4 @@
-// src/pages/residents/CertificateRequest.js
+// src/pages/residents/CertificateRequest.js - Updated implementation
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -23,6 +23,7 @@ import {
   FaEye,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { documentRequestService } from "../../services/api";
 
 const CertificateRequest = () => {
   const { currentUser } = useAuth();
@@ -31,37 +32,19 @@ const CertificateRequest = () => {
   const [requestHistory, setRequestHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
-  // In a real app, we would fetch request history from the backend
+  // Fetch request history from the backend
   useEffect(() => {
-    // Simulate API call
     const fetchRequestHistory = async () => {
       try {
         setLoadingHistory(true);
-        // Simulate delay
-        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Sample data
-        const sampleHistory = [
-          {
-            id: 1,
-            requestId: "REQ-2023005",
-            certificateType: "barangay-clearance",
-            requestDate: "2023-07-01T09:15:00",
-            status: "completed",
-            deliveryOption: "pickup",
-            completedDate: "2023-07-02T14:30:00",
-          },
-          {
-            id: 2,
-            requestId: "REQ-2023010",
-            certificateType: "residency",
-            requestDate: "2023-07-10T11:20:00",
-            status: "pending",
-            deliveryOption: "email",
-          },
-        ];
-
-        setRequestHistory(sampleHistory);
+        if (currentUser?.residentId) {
+          // Get requests for this resident
+          const response = await documentRequestService.getByResident(
+            currentUser.residentId
+          );
+          setRequestHistory(response.data);
+        }
       } catch (error) {
         console.error("Error fetching request history:", error);
         toast.error("Failed to load request history");
@@ -71,7 +54,7 @@ const CertificateRequest = () => {
     };
 
     fetchRequestHistory();
-  }, []);
+  }, [currentUser]);
 
   // Validation schema
   const validationSchema = Yup.object({
@@ -82,28 +65,30 @@ const CertificateRequest = () => {
 
   // Handle form submission
   const handleSubmit = async (values, { resetForm }) => {
+    if (!currentUser?.residentId) {
+      toast.error(
+        "You must be logged in as a resident to request certificates"
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
 
-      // In a real application, you would make an API call to submit the request
-      // For demonstration, we'll just simulate a successful submission
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Create a new request object
-      const newRequest = {
-        id: requestHistory.length + 1,
-        requestId: `REQ-${new Date().getFullYear()}${String(
-          Math.floor(Math.random() * 1000)
-        ).padStart(3, "0")}`,
-        certificateType: values.certificateType,
-        requestDate: new Date().toISOString(),
-        status: "pending",
-        deliveryOption: values.deliveryOption,
+      // Format data for API
+      const requestData = {
+        residentId: currentUser.residentId,
+        documentType: values.certificateType,
         purpose: values.purpose,
+        deliveryOption: values.deliveryOption,
+        additionalDetails: values.additionalNotes || "",
       };
 
+      // Send request to API
+      const response = await documentRequestService.create(requestData);
+
       // Add to history
-      setRequestHistory([newRequest, ...requestHistory]);
+      setRequestHistory([response.data, ...requestHistory]);
 
       // Show success message
       setSuccess(true);
@@ -114,7 +99,10 @@ const CertificateRequest = () => {
       setTimeout(() => setSuccess(false), 5000);
     } catch (error) {
       console.error("Error submitting request:", error);
-      toast.error("Failed to submit request. Please try again.");
+      toast.error(
+        error.response?.data?.error ||
+          "Failed to submit request. Please try again."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -392,9 +380,9 @@ const CertificateRequest = () => {
                         <td>{request.requestId}</td>
                         <td>
                           {
-                            getCertificateTypeName(
-                              request.certificateType
-                            ).split(" ")[0]
+                            getCertificateTypeName(request.documentType).split(
+                              " "
+                            )[0]
                           }
                         </td>
                         <td>{getStatusBadge(request.status)}</td>

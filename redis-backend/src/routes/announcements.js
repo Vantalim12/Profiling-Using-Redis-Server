@@ -1,9 +1,8 @@
-// redis-backend/src/routes/announcements.js
+// redis-backend/src/routes/announcements.js - Updated implementation
 const express = require("express");
 const router = express.Router();
 const { body, validationResult } = require("express-validator");
 const { authenticateToken } = require("../middleware/auth");
-const { generateId } = require("../utils/redisUtils");
 const { v4: uuidv4 } = require("uuid");
 
 // Apply authentication middleware to all routes
@@ -77,13 +76,17 @@ router.post(
       const { title, category, type, content } = req.body;
       const date = new Date().toISOString();
 
-      // Save the announcement to Redis
-      await req.redisClient.hSet(`announcement:${id}`, "id", id);
-      await req.redisClient.hSet(`announcement:${id}`, "title", title);
-      await req.redisClient.hSet(`announcement:${id}`, "category", category);
-      await req.redisClient.hSet(`announcement:${id}`, "type", type);
-      await req.redisClient.hSet(`announcement:${id}`, "content", content);
-      await req.redisClient.hSet(`announcement:${id}`, "date", date);
+      // Save the announcement to Redis with individual fields
+      // FIXED: Use individual hSet calls for Redis 3.0 compatibility
+      const key = `announcement:${id}`;
+      await req.redisClient.hSet(key, "id", id);
+      await req.redisClient.hSet(key, "title", title);
+      await req.redisClient.hSet(key, "category", category);
+      await req.redisClient.hSet(key, "type", type);
+      await req.redisClient.hSet(key, "content", content);
+      await req.redisClient.hSet(key, "date", date);
+
+      console.log(`Created announcement with ID: ${id}`);
 
       // Prepare response
       const announcement = {
@@ -131,16 +134,15 @@ router.put(
 
       const { title, category, type, content } = req.body;
 
-      // Update the announcement in Redis
-      await req.redisClient.hSet(`announcement:${id}`, "title", title);
-      await req.redisClient.hSet(`announcement:${id}`, "category", category);
-      await req.redisClient.hSet(`announcement:${id}`, "type", type);
-      await req.redisClient.hSet(`announcement:${id}`, "content", content);
+      // Update the announcement in Redis - fixed for Redis 3.0 compatibility
+      const key = `announcement:${id}`;
+      await req.redisClient.hSet(key, "title", title);
+      await req.redisClient.hSet(key, "category", category);
+      await req.redisClient.hSet(key, "type", type);
+      await req.redisClient.hSet(key, "content", content);
 
       // Get the updated announcement
-      const updatedAnnouncement = await req.redisClient.hGetAll(
-        `announcement:${id}`
-      );
+      const updatedAnnouncement = await req.redisClient.hGetAll(key);
 
       res.json(updatedAnnouncement);
     } catch (error) {

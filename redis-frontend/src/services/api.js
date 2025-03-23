@@ -1,4 +1,4 @@
-// src/services/api.js
+// src/services/api.js - Ensure correct implementations
 import axios from "axios";
 
 // Base API URL
@@ -51,6 +51,10 @@ export const eventService = {
   create: (data) => axios.post(`${API_URL}/api/events`, data),
   update: (id, data) => axios.put(`${API_URL}/api/events/${id}`, data),
   delete: (id) => axios.delete(`${API_URL}/api/events/${id}`),
+  registerAttendee: (id, attendee) =>
+    axios.post(`${API_URL}/api/events/${id}/register`, { attendee }),
+  unregisterAttendee: (id, attendeeId) =>
+    axios.delete(`${API_URL}/api/events/${id}/register/${attendeeId}`),
 };
 
 // Document Request service
@@ -64,3 +68,56 @@ export const documentRequestService = {
     axios.put(`${API_URL}/api/documents/${id}/status`, data),
   delete: (id) => axios.delete(`${API_URL}/api/documents/${id}`),
 };
+
+// Setup axios interceptors for error handling
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Centralized error handling logic
+    console.error("API Error:", error);
+
+    // Check if error has response from server
+    if (error.response) {
+      // Server responded with non-2xx status code
+      if (error.response.status === 401) {
+        // Handle authentication error - could redirect to login
+        console.log("Authentication error - redirecting to login");
+        localStorage.removeItem("token");
+        window.location.href = "/login";
+      }
+
+      // Handle specific HTTP error codes
+      switch (error.response.status) {
+        case 400:
+          console.log("Bad request error:", error.response.data);
+          break;
+        case 403:
+          console.log("Forbidden error:", error.response.data);
+          break;
+        case 404:
+          console.log("Not found error:", error.response.data);
+          break;
+        case 500:
+          console.log("Server error:", error.response.data);
+          break;
+        default:
+          console.log(`Error (${error.response.status}):`, error.response.data);
+      }
+    } else if (error.request) {
+      // Request was made but no response was received
+      console.log("Network error - no response received:", error.request);
+    } else {
+      // Something else caused the error
+      console.log("Error message:", error.message);
+    }
+
+    // Pass error along to be handled by components
+    return Promise.reject(error);
+  }
+);
+
+// Set auth header if token exists
+const token = localStorage.getItem("token");
+if (token) {
+  axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+}
