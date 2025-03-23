@@ -1,4 +1,4 @@
-// src/pages/admin/EventsManagement.js
+// src/pages/admin/EventsManagement.js - FIXED VERSION
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -33,6 +33,7 @@ import {
   FaEnvelope,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { eventService } from "../../services/api";
 
 const EventsManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,112 +41,35 @@ const EventsManagement = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fetchingData, setFetchingData] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
-  const [persistentEvents, setPersistentEvents] = useState([]);
+  const [events, setEvents] = useState([]);
 
-  // Sample events data
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      title: "Barangay Assembly Meeting",
-      date: "2023-07-15",
-      time: "09:00 AM - 12:00 PM",
-      location: "Barangay Hall",
-      category: "meeting",
-      description:
-        "Quarterly barangay assembly meeting to discuss community issues and upcoming projects.",
-      attendees: [
-        { id: "R-2023001", name: "John Doe", contactNumber: "09123456789" },
-        { id: "R-2023002", name: "Jane Smith", contactNumber: "09234567890" },
-      ],
-    },
-    {
-      id: 2,
-      title: "Health and Wellness Day",
-      date: "2023-07-22",
-      time: "08:00 AM - 04:00 PM",
-      location: "Barangay Health Center",
-      category: "health",
-      description:
-        "Free medical check-ups and consultations. Services include blood pressure monitoring, blood sugar screening, dental check-up, and eye examination.",
-      attendees: [
-        { id: "R-2023001", name: "John Doe", contactNumber: "09123456789" },
-        {
-          id: "R-2023003",
-          name: "Robert Johnson",
-          contactNumber: "09345678901",
-        },
-        {
-          id: "R-2023004",
-          name: "Sarah Williams",
-          contactNumber: "09456789012",
-        },
-      ],
-    },
-    {
-      id: 3,
-      title: "Livelihood Training Workshop",
-      date: "2023-08-05",
-      time: "01:00 PM - 05:00 PM",
-      location: "Barangay Multi-purpose Hall",
-      category: "training",
-      description:
-        "Basic entrepreneurship skills training and product development workshop. Registration required.",
-      attendees: [],
-    },
-    {
-      id: 4,
-      title: "Community Clean-up Drive",
-      date: "2023-08-12",
-      time: "07:00 AM - 10:00 AM",
-      location: "Barangay Plaza",
-      category: "environment",
-      description:
-        "Monthly community clean-up drive. Please bring your own gloves and cleaning materials.",
-      attendees: [
-        { id: "R-2023002", name: "Jane Smith", contactNumber: "09234567890" },
-      ],
-    },
-    {
-      id: 5,
-      title: "Senior Citizens' Day",
-      date: "2023-08-20",
-      time: "02:00 PM - 05:00 PM",
-      location: "Barangay Senior Citizens Center",
-      category: "social",
-      description:
-        "Special program for senior citizens including health talks, games, and distribution of benefits.",
-      attendees: [],
-    },
-    {
-      id: 6,
-      title: "Youth Sports Tournament",
-      date: "2023-09-02",
-      time: "08:00 AM - 05:00 PM",
-      location: "Barangay Sports Complex",
-      category: "sports",
-      description:
-        "Basketball and volleyball tournament for barangay youth. Registration is open until August 25.",
-      attendees: [],
-    },
-  ]);
-
-  // Store events in state to persist them
+  // Fetch events on component mount
   useEffect(() => {
-    if (persistentEvents.length === 0 && events.length > 0) {
-      setPersistentEvents(events);
-    } else {
-      setEvents(persistentEvents);
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      setFetchingData(true);
+      const response = await eventService.getAll();
+      setEvents(response.data);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      toast.error("Failed to load events");
+    } finally {
+      setFetchingData(false);
     }
-  }, [persistentEvents]);
+  };
 
   // Validation schema for event form
   const eventSchema = Yup.object({
     title: Yup.string().required("Title is required"),
     description: Yup.string().required("Description is required"),
     category: Yup.string().required("Category is required"),
-    date: Yup.date().required("Date is required"),
+    eventDate: Yup.date().required("Date is required"),
     time: Yup.string().required("Time is required"),
     location: Yup.string().required("Location is required"),
   });
@@ -173,9 +97,9 @@ const EventsManagement = () => {
   // Filter events
   const filteredEvents = events.filter((event) => {
     const matchesSearch =
-      event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.location.toLowerCase().includes(searchTerm.toLowerCase());
+      event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory =
       filterCategory === "all" || event.category === filterCategory;
 
@@ -184,70 +108,91 @@ const EventsManagement = () => {
 
   // Sort events by date
   const sortedEvents = [...filteredEvents].sort(
-    (a, b) => new Date(a.date) - new Date(b.date)
+    (a, b) => new Date(a.eventDate) - new Date(b.eventDate)
   );
 
   // Handle add event
-  const handleAddEvent = (values, { resetForm }) => {
-    setLoading(true);
+  const handleAddEvent = async (values, { resetForm }) => {
+    try {
+      setLoading(true);
 
-    // In a real app, this would be an API call
-    setTimeout(() => {
-      const newEvent = {
-        id: events.length + 1,
+      // Initialize with empty attendees
+      const eventData = {
         ...values,
-        attendees: [], // Initialize with empty attendees list
+        attendees: [],
       };
 
-      const updatedEvents = [...events, newEvent];
-      setEvents(updatedEvents);
-      setPersistentEvents(updatedEvents);
-      setLoading(false);
-      setShowAddModal(false);
+      // Create event
+      await eventService.create(eventData);
+
+      // Refresh events
+      fetchEvents();
+
+      // Reset form and close modal
       resetForm();
+      setShowAddModal(false);
       toast.success("Event added successfully");
-    }, 1000);
+    } catch (error) {
+      console.error("Error adding event:", error);
+      toast.error("Failed to add event");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle edit event
-  const handleEditEvent = (values) => {
-    setLoading(true);
+  const handleEditEvent = async (values) => {
+    try {
+      setLoading(true);
 
-    // In a real app, this would be an API call
-    setTimeout(() => {
-      const updatedEvents = events.map((event) => {
-        if (event.id === selectedEvent.id) {
-          return {
-            ...event,
-            ...values,
-          };
-        }
-        return event;
-      });
+      // Preserve attendees from selected event
+      const eventData = {
+        ...values,
+        attendees: selectedEvent.attendees || [],
+      };
 
-      setEvents(updatedEvents);
-      setPersistentEvents(updatedEvents);
-      setLoading(false);
+      // Update event
+      await eventService.update(selectedEvent.id, eventData);
+
+      // Refresh events
+      fetchEvents();
+
+      // Close modal and clear selection
       setShowEditModal(false);
       setSelectedEvent(null);
       toast.success("Event updated successfully");
-    }, 1000);
+    } catch (error) {
+      console.error("Error updating event:", error);
+      toast.error("Failed to update event");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Handle delete event
-  const handleDeleteEvent = (id) => {
+  const handleDeleteEvent = async (id) => {
     if (window.confirm("Are you sure you want to delete this event?")) {
-      // In a real app, this would be an API call
-      const updatedEvents = events.filter((event) => event.id !== id);
-      setEvents(updatedEvents);
-      setPersistentEvents(updatedEvents);
-      toast.success("Event deleted successfully");
+      try {
+        await eventService.delete(id);
+
+        // Refresh events
+        fetchEvents();
+        toast.success("Event deleted successfully");
+      } catch (error) {
+        console.error("Error deleting event:", error);
+        toast.error("Failed to delete event");
+      }
     }
   };
 
   // Open edit modal
   const openEditModal = (event) => {
-    setSelectedEvent(event);
+    // Format date for the date input
+    const formattedEvent = {
+      ...event,
+      eventDate: event.eventDate ? event.eventDate.split("T")[0] : "",
+    };
+    setSelectedEvent(formattedEvent);
     setShowEditModal(true);
   };
 
@@ -258,74 +203,68 @@ const EventsManagement = () => {
   };
 
   // Add attendee manually
-  const handleAddAttendee = (newAttendee) => {
+  const handleAddAttendee = async (newAttendee) => {
     if (!newAttendee.id || !newAttendee.name) {
       toast.error("Resident ID and Name are required");
       return;
     }
 
-    // Check if attendee already exists
-    const exists = selectedEvent.attendees.some(
-      (attendee) => attendee.id === newAttendee.id
-    );
-    if (exists) {
-      toast.warning("This resident is already registered for this event");
-      return;
-    }
+    try {
+      // Check if attendee already exists
+      const exists = selectedEvent.attendees.some(
+        (attendee) => attendee.id === newAttendee.id
+      );
 
-    // In a real app, this would validate the resident exists
-    const updatedEvents = events.map((event) => {
-      if (event.id === selectedEvent.id) {
-        return {
-          ...event,
-          attendees: [...event.attendees, newAttendee],
-        };
+      if (exists) {
+        toast.warning("This resident is already registered for this event");
+        return;
       }
-      return event;
-    });
 
-    setEvents(updatedEvents);
-    setPersistentEvents(updatedEvents);
-    setSelectedEvent({
-      ...selectedEvent,
-      attendees: [...selectedEvent.attendees, newAttendee],
-    });
-    toast.success(`${newAttendee.name} added to attendees list`);
+      // Register attendee
+      await eventService.registerAttendee(selectedEvent.id, newAttendee);
+
+      // Refresh events to get updated attendees
+      await fetchEvents();
+
+      // Update selected event with updated data
+      const updatedEvent = await eventService.getById(selectedEvent.id);
+      setSelectedEvent(updatedEvent.data);
+
+      toast.success(`${newAttendee.name} added to attendees list`);
+    } catch (error) {
+      console.error("Error adding attendee:", error);
+      toast.error("Failed to add attendee");
+    }
   };
 
   // Remove attendee
-  const handleRemoveAttendee = (attendeeId) => {
+  const handleRemoveAttendee = async (attendeeId) => {
     if (window.confirm("Are you sure you want to remove this attendee?")) {
-      const updatedEvents = events.map((event) => {
-        if (event.id === selectedEvent.id) {
-          return {
-            ...event,
-            attendees: event.attendees.filter(
-              (attendee) => attendee.id !== attendeeId
-            ),
-          };
-        }
-        return event;
-      });
+      try {
+        // Unregister attendee
+        await eventService.unregisterAttendee(selectedEvent.id, attendeeId);
 
-      setEvents(updatedEvents);
-      setPersistentEvents(updatedEvents);
-      setSelectedEvent({
-        ...selectedEvent,
-        attendees: selectedEvent.attendees.filter(
-          (attendee) => attendee.id !== attendeeId
-        ),
-      });
-      toast.success("Attendee removed successfully");
+        // Refresh events
+        await fetchEvents();
+
+        // Update selected event
+        const updatedEvent = await eventService.getById(selectedEvent.id);
+        setSelectedEvent(updatedEvent.data);
+
+        toast.success("Attendee removed successfully");
+      } catch (error) {
+        console.error("Error removing attendee:", error);
+        toast.error("Failed to remove attendee");
+      }
     }
   };
 
   // Send notification to attendees
   const handleSendNotification = () => {
+    // In a real app, this would send notifications to attendees
     toast.info(
       `Sending notification to ${selectedEvent.attendees.length} attendees about "${selectedEvent.title}"`
     );
-    // In a real app, this would send notifications to attendees
   };
 
   return (
@@ -375,66 +314,73 @@ const EventsManagement = () => {
 
       <Card className="shadow-sm">
         <Card.Body className="p-0">
-          <Table responsive hover className="mb-0">
-            <thead className="bg-light">
-              <tr>
-                <th>Title</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Location</th>
-                <th>Category</th>
-                <th>Attendees</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedEvents.length > 0 ? (
-                sortedEvents.map((event) => (
-                  <tr key={event.id}>
-                    <td>{event.title}</td>
-                    <td>{new Date(event.date).toLocaleDateString()}</td>
-                    <td>{event.time}</td>
-                    <td>{event.location}</td>
-                    <td>{getCategoryBadge(event.category)}</td>
-                    <td>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => openAttendeesModal(event)}
-                      >
-                        <FaUsers className="me-1" /> {event.attendees.length}
-                      </Button>
-                    </td>
-                    <td>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        className="me-1"
-                        onClick={() => openEditModal(event)}
-                        title="Edit"
-                      >
-                        <FaEdit />
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => handleDeleteEvent(event.id)}
-                        title="Delete"
-                      >
-                        <FaTrash />
-                      </Button>
+          {fetchingData ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" variant="primary" />
+            </div>
+          ) : (
+            <Table responsive hover className="mb-0">
+              <thead className="bg-light">
+                <tr>
+                  <th>Title</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Location</th>
+                  <th>Category</th>
+                  <th>Attendees</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedEvents.length > 0 ? (
+                  sortedEvents.map((event) => (
+                    <tr key={event.id}>
+                      <td>{event.title}</td>
+                      <td>{new Date(event.eventDate).toLocaleDateString()}</td>
+                      <td>{event.time}</td>
+                      <td>{event.location}</td>
+                      <td>{getCategoryBadge(event.category)}</td>
+                      <td>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => openAttendeesModal(event)}
+                        >
+                          <FaUsers className="me-1" />{" "}
+                          {event.attendees ? event.attendees.length : 0}
+                        </Button>
+                      </td>
+                      <td>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="me-1"
+                          onClick={() => openEditModal(event)}
+                          title="Edit"
+                        >
+                          <FaEdit />
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDeleteEvent(event.id)}
+                          title="Delete"
+                        >
+                          <FaTrash />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="text-center py-3">
+                      No events found matching your criteria.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="text-center py-3">
-                    No events found matching your criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+                )}
+              </tbody>
+            </Table>
+          )}
         </Card.Body>
       </Card>
 
@@ -454,7 +400,7 @@ const EventsManagement = () => {
             title: "",
             description: "",
             category: "",
-            date: new Date().toISOString().split("T")[0],
+            eventDate: new Date().toISOString().split("T")[0],
             time: "",
             location: "",
           }}
@@ -468,7 +414,6 @@ const EventsManagement = () => {
             handleChange,
             handleBlur,
             handleSubmit,
-            isSubmitting,
           }) => (
             <Form onSubmit={handleSubmit}>
               <Modal.Body>
@@ -517,14 +462,14 @@ const EventsManagement = () => {
                       <Form.Label>Date</Form.Label>
                       <Form.Control
                         type="date"
-                        name="date"
-                        value={values.date}
+                        name="eventDate"
+                        value={values.eventDate}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={touched.date && !!errors.date}
+                        isInvalid={touched.eventDate && !!errors.eventDate}
                       />
                       <Form.Control.Feedback type="invalid">
-                        {errors.date}
+                        {errors.eventDate}
                       </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
@@ -616,12 +561,12 @@ const EventsManagement = () => {
         {selectedEvent && (
           <Formik
             initialValues={{
-              title: selectedEvent.title,
-              description: selectedEvent.description,
-              category: selectedEvent.category,
-              date: selectedEvent.date,
-              time: selectedEvent.time,
-              location: selectedEvent.location,
+              title: selectedEvent.title || "",
+              description: selectedEvent.description || "",
+              category: selectedEvent.category || "",
+              eventDate: selectedEvent.eventDate || "",
+              time: selectedEvent.time || "",
+              location: selectedEvent.location || "",
             }}
             validationSchema={eventSchema}
             onSubmit={handleEditEvent}
@@ -633,7 +578,6 @@ const EventsManagement = () => {
               handleChange,
               handleBlur,
               handleSubmit,
-              isSubmitting,
             }) => (
               <Form onSubmit={handleSubmit}>
                 <Modal.Body>
@@ -682,14 +626,14 @@ const EventsManagement = () => {
                         <Form.Label>Date</Form.Label>
                         <Form.Control
                           type="date"
-                          name="date"
-                          value={values.date}
+                          name="eventDate"
+                          value={values.eventDate}
                           onChange={handleChange}
                           onBlur={handleBlur}
-                          isInvalid={touched.date && !!errors.date}
+                          isInvalid={touched.eventDate && !!errors.eventDate}
                         />
                         <Form.Control.Feedback type="invalid">
-                          {errors.date}
+                          {errors.eventDate}
                         </Form.Control.Feedback>
                       </Form.Group>
                     </Col>
@@ -790,8 +734,9 @@ const EventsManagement = () => {
                 <h5>{selectedEvent.title}</h5>
                 <p className="mb-2">
                   <FaCalendarAlt className="me-2 text-primary" />
-                  {new Date(selectedEvent.date).toLocaleDateString()} |{" "}
-                  {selectedEvent.time}
+                  {new Date(
+                    selectedEvent.eventDate
+                  ).toLocaleDateString()} | {selectedEvent.time}
                 </p>
                 <p className="mb-0">
                   <FaMapMarkerAlt className="me-2 text-danger" />
@@ -801,7 +746,8 @@ const EventsManagement = () => {
 
               <Tabs defaultActiveKey="attendees" className="mb-3">
                 <Tab eventKey="attendees" title="Attendees">
-                  {selectedEvent.attendees.length > 0 ? (
+                  {selectedEvent.attendees &&
+                  selectedEvent.attendees.length > 0 ? (
                     <ListGroup>
                       {selectedEvent.attendees.map((attendee) => (
                         <ListGroup.Item
@@ -845,14 +791,7 @@ const EventsManagement = () => {
                       resetForm();
                     }}
                   >
-                    {({
-                      values,
-                      errors,
-                      touched,
-                      handleChange,
-                      handleBlur,
-                      handleSubmit,
-                    }) => (
+                    {({ values, handleChange, handleBlur, handleSubmit }) => (
                       <Form onSubmit={handleSubmit}>
                         <Form.Group className="mb-3">
                           <Form.Label>Resident ID</Form.Label>
@@ -908,13 +847,20 @@ const EventsManagement = () => {
                     <Button
                       variant="primary"
                       onClick={handleSendNotification}
-                      disabled={selectedEvent.attendees.length === 0}
+                      disabled={
+                        !selectedEvent.attendees ||
+                        selectedEvent.attendees.length === 0
+                      }
                     >
                       <FaEnvelope className="me-2" />
-                      Send Notification to {selectedEvent.attendees.length}{" "}
+                      Send Notification to{" "}
+                      {selectedEvent.attendees
+                        ? selectedEvent.attendees.length
+                        : 0}{" "}
                       Attendee(s)
                     </Button>
-                    {selectedEvent.attendees.length === 0 && (
+                    {(!selectedEvent.attendees ||
+                      selectedEvent.attendees.length === 0) && (
                       <div className="text-muted mt-2">
                         No attendees to notify. Add attendees first.
                       </div>

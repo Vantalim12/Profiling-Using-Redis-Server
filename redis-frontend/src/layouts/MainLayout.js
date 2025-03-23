@@ -1,4 +1,4 @@
-// src/layouts/MainLayout.js
+// src/layouts/MainLayout.js - FIXED WITHOUT DUPLICATE LINKS
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Container, Navbar, Nav, Button, Offcanvas } from "react-bootstrap";
@@ -16,7 +16,6 @@ import {
   FaTachometerAlt,
   FaChevronLeft,
   FaChevronRight,
-  FaMegaphone,
 } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -128,15 +127,6 @@ const MainLayout = () => {
             <span className="nav-text">Announcements</span>
           </Nav.Link>
 
-          <Nav.Link
-            as={Link}
-            to="/dashboard/events"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/events") ? "bg-primary" : ""
-            }`}
-          >
-            <FaCalendarAlt className="me-3" /> Events
-          </Nav.Link>
           <Nav.Link
             as={Link}
             to="/dashboard/events-management"
@@ -274,15 +264,6 @@ const MainLayout = () => {
               </div>
             )}
           </div>
-          <Nav.Link
-            as={Link}
-            to="/dashboard/announcements"
-            className={`d-flex align-items-center py-3 px-3 ${
-              isActive("/dashboard/announcements") ? "bg-primary" : ""
-            }`}
-          >
-            <FaBullhorn className="me-3" /> Announcements
-          </Nav.Link>
 
           <Nav.Link
             as={Link}

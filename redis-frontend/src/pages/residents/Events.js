@@ -1,4 +1,4 @@
-// src/pages/residents/Events.js
+// src/pages/residents/Events.js - FIXED VERSION
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -27,6 +27,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "react-toastify";
+import { eventService } from "../../services/api";
 
 const Events = () => {
   const { currentUser } = useAuth();
@@ -37,105 +38,38 @@ const Events = () => {
   const [registering, setRegistering] = useState(false);
   const [myRegistrations, setMyRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [persistentEvents, setPersistentEvents] = useState([]);
+  const [events, setEvents] = useState([]);
 
-  // Sample events data
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      title: "Barangay Assembly Meeting",
-      date: "2023-07-15",
-      time: "09:00 AM - 12:00 PM",
-      location: "Barangay Hall",
-      category: "meeting",
-      description:
-        "Quarterly barangay assembly meeting to discuss community issues and upcoming projects.",
-      attendees: [
-        { id: "R-2023001", name: "John Doe", contactNumber: "09123456789" },
-        { id: "R-2023002", name: "Jane Smith", contactNumber: "09234567890" },
-      ],
-    },
-    {
-      id: 2,
-      title: "Health and Wellness Day",
-      date: "2023-07-22",
-      time: "08:00 AM - 04:00 PM",
-      location: "Barangay Health Center",
-      category: "health",
-      description:
-        "Free medical check-ups and consultations. Services include blood pressure monitoring, blood sugar screening, dental check-up, and eye examination.",
-      attendees: [
-        { id: "R-2023001", name: "John Doe", contactNumber: "09123456789" },
-        {
-          id: "R-2023003",
-          name: "Robert Johnson",
-          contactNumber: "09345678901",
-        },
-      ],
-    },
-    {
-      id: 3,
-      title: "Livelihood Training Workshop",
-      date: "2023-08-05",
-      time: "01:00 PM - 05:00 PM",
-      location: "Barangay Multi-purpose Hall",
-      category: "training",
-      description:
-        "Basic entrepreneurship skills training and product development workshop. Registration required.",
-      attendees: [],
-    },
-    {
-      id: 4,
-      title: "Community Clean-up Drive",
-      date: "2023-08-12",
-      time: "07:00 AM - 10:00 AM",
-      location: "Barangay Plaza",
-      category: "environment",
-      description:
-        "Monthly community clean-up drive. Please bring your own gloves and cleaning materials.",
-      attendees: [
-        { id: "R-2023002", name: "Jane Smith", contactNumber: "09234567890" },
-      ],
-    },
-    {
-      id: 5,
-      title: "Senior Citizens' Day",
-      date: "2023-08-20",
-      time: "02:00 PM - 05:00 PM",
-      location: "Barangay Senior Citizens Center",
-      category: "social",
-      description:
-        "Special program for senior citizens including health talks, games, and distribution of benefits.",
-      attendees: [],
-    },
-    {
-      id: 6,
-      title: "Youth Sports Tournament",
-      date: "2023-09-02",
-      time: "08:00 AM - 05:00 PM",
-      location: "Barangay Sports Complex",
-      category: "sports",
-      description:
-        "Basketball and volleyball tournament for barangay youth. Registration is open until August 25.",
-      attendees: [],
-    },
-  ]);
-
-  // Initialize events and find user registrations
+  // Fetch events and user registrations on component mount
   useEffect(() => {
-    setLoading(true);
+    fetchEvents();
+  }, []);
 
-    // On first load, store events in persistent state
-    if (persistentEvents.length === 0 && events.length > 0) {
-      setPersistentEvents(events);
-    } else if (persistentEvents.length > 0) {
-      setEvents(persistentEvents);
+  // Find user registrations whenever events change or user changes
+  useEffect(() => {
+    if (currentUser?.residentId && events.length > 0) {
+      findUserRegistrations();
     }
+  }, [events, currentUser]);
 
-    // Find user registrations
-    if (currentUser?.residentId) {
-      const userAttendances = [];
-      events.forEach((event) => {
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const response = await eventService.getAll();
+      setEvents(response.data);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      toast.error("Failed to load events");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Find and set user registrations
+  const findUserRegistrations = () => {
+    const userAttendances = [];
+    events.forEach((event) => {
+      if (event.attendees) {
         const isRegistered = event.attendees.some(
           (attendee) => attendee.id === currentUser.residentId
         );
@@ -143,23 +77,21 @@ const Events = () => {
           userAttendances.push({
             eventId: event.id,
             title: event.title,
-            date: event.date,
+            date: event.eventDate,
             time: event.time,
             category: event.category,
           });
         }
-      });
-      setMyRegistrations(userAttendances);
-    }
-
-    setLoading(false);
-  }, [currentUser, persistentEvents]);
+      }
+    });
+    setMyRegistrations(userAttendances);
+  };
 
   // Get unique months from events
   const months = [
     ...new Set(
       events.map((event) => {
-        const date = new Date(event.date);
+        const date = new Date(event.eventDate);
         return `${date.getFullYear()}-${date.getMonth() + 1}`;
       })
     ),
@@ -167,12 +99,15 @@ const Events = () => {
 
   // Filter events based on search term and month
   const filteredEvents = events.filter((event) => {
-    const eventDate = new Date(event.date);
+    if (!event.eventDate) return false;
+
+    const eventDate = new Date(event.eventDate);
     const eventMonth = `${eventDate.getFullYear()}-${eventDate.getMonth() + 1}`;
 
     const matchesSearch =
-      event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      event.description.toLowerCase().includes(searchTerm.toLowerCase());
+      event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesMonth = filterMonth === "all" || eventMonth === filterMonth;
 
     return matchesSearch && matchesMonth;
@@ -180,12 +115,12 @@ const Events = () => {
 
   // Sort events by date
   const sortedEvents = [...filteredEvents].sort(
-    (a, b) => new Date(a.date) - new Date(b.date)
+    (a, b) => new Date(a.eventDate) - new Date(b.eventDate)
   );
 
   // Group events by month
   const groupedEvents = sortedEvents.reduce((groups, event) => {
-    const date = new Date(event.date);
+    const date = new Date(event.eventDate);
     const monthYear = date.toLocaleString("default", {
       month: "long",
       year: "numeric",
@@ -240,13 +175,12 @@ const Events = () => {
     try {
       setRegistering(true);
 
-      // Simulate API request
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
       // Check if already registered
-      const isAlreadyRegistered = selectedEvent.attendees.some(
-        (attendee) => attendee.id === currentUser.residentId
-      );
+      const isAlreadyRegistered =
+        selectedEvent.attendees &&
+        selectedEvent.attendees.some(
+          (attendee) => attendee.id === currentUser.residentId
+        );
 
       if (isAlreadyRegistered) {
         toast.warning("You are already registered for this event");
@@ -261,31 +195,11 @@ const Events = () => {
         contactNumber: "", // We could store this in the user profile
       };
 
-      // Update events state
-      const updatedEvents = events.map((event) => {
-        if (event.id === selectedEvent.id) {
-          return {
-            ...event,
-            attendees: [...event.attendees, newAttendee],
-          };
-        }
-        return event;
-      });
+      // Register attendee
+      await eventService.registerAttendee(selectedEvent.id, newAttendee);
 
-      setEvents(updatedEvents);
-      setPersistentEvents(updatedEvents);
-
-      // Update myRegistrations
-      setMyRegistrations([
-        ...myRegistrations,
-        {
-          eventId: selectedEvent.id,
-          title: selectedEvent.title,
-          date: selectedEvent.date,
-          time: selectedEvent.time,
-          category: selectedEvent.category,
-        },
-      ]);
+      // Refresh events
+      await fetchEvents();
 
       toast.success("You have successfully registered for this event");
       setShowRegistrationModal(false);
@@ -307,29 +221,11 @@ const Events = () => {
       try {
         setLoading(true);
 
-        // Simulate API request
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // Unregister attendee
+        await eventService.unregisterAttendee(eventId, currentUser.residentId);
 
-        // Update events state
-        const updatedEvents = events.map((event) => {
-          if (event.id === eventId) {
-            return {
-              ...event,
-              attendees: event.attendees.filter(
-                (attendee) => attendee.id !== currentUser.residentId
-              ),
-            };
-          }
-          return event;
-        });
-
-        setEvents(updatedEvents);
-        setPersistentEvents(updatedEvents);
-
-        // Update myRegistrations
-        setMyRegistrations(
-          myRegistrations.filter((reg) => reg.eventId !== eventId)
-        );
+        // Refresh events
+        await fetchEvents();
 
         toast.success("Your registration has been canceled");
       } catch (error) {
@@ -449,7 +345,12 @@ const Events = () => {
         </Col>
       </Row>
 
-      {Object.entries(groupedEvents).length > 0 ? (
+      {loading ? (
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="primary" />
+          <p className="mt-2">Loading events...</p>
+        </div>
+      ) : Object.entries(groupedEvents).length > 0 ? (
         Object.entries(groupedEvents).map(([monthYear, monthEvents]) => (
           <div key={monthYear} className="mb-4">
             <h4 className="border-bottom pb-2 mb-3">
@@ -470,12 +371,15 @@ const Events = () => {
                       <div className="d-flex align-items-center mb-2">
                         <FaCalendarAlt className="text-primary me-2" />
                         <span>
-                          {new Date(event.date).toLocaleDateString("en-US", {
-                            weekday: "long",
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          {new Date(event.eventDate).toLocaleDateString(
+                            "en-US",
+                            {
+                              weekday: "long",
+                              month: "long",
+                              day: "numeric",
+                              year: "numeric",
+                            }
+                          )}
                         </span>
                       </div>
 
@@ -491,7 +395,10 @@ const Events = () => {
 
                       <div className="d-flex align-items-center text-muted mb-3">
                         <FaUserFriends className="me-2" />
-                        <span>{event.attendees.length} people registered</span>
+                        <span>
+                          {event.attendees ? event.attendees.length : 0} people
+                          registered
+                        </span>
                       </div>
                     </Card.Body>
                     <Card.Footer>
@@ -544,12 +451,15 @@ const Events = () => {
                 <div className="d-flex align-items-center mb-2">
                   <FaCalendarAlt className="text-primary me-2" />
                   <span>
-                    {new Date(selectedEvent.date).toLocaleDateString("en-US", {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {new Date(selectedEvent.eventDate).toLocaleDateString(
+                      "en-US",
+                      {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      }
+                    )}
                   </span>
                 </div>
                 <div className="d-flex align-items-center mb-2">
@@ -601,99 +511,6 @@ const Events = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-
-      {/* Calendar View Section */}
-      <Card className="shadow-sm mt-4">
-        <Card.Header className="bg-primary text-white">
-          <h5 className="mb-0">Calendar View</h5>
-        </Card.Header>
-        <Card.Body>
-          <Table responsive bordered className="text-center">
-            <thead className="bg-light">
-              <tr>
-                <th>Sun</th>
-                <th>Mon</th>
-                <th>Tue</th>
-                <th>Wed</th>
-                <th>Thu</th>
-                <th>Fri</th>
-                <th>Sat</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* In a real application, you would generate a calendar based on the current month */}
-              <tr>
-                <td className="text-muted">25</td>
-                <td className="text-muted">26</td>
-                <td className="text-muted">27</td>
-                <td className="text-muted">28</td>
-                <td className="text-muted">29</td>
-                <td className="text-muted">30</td>
-                <td>1</td>
-              </tr>
-              <tr>
-                <td>2</td>
-                <td>3</td>
-                <td>4</td>
-                <td>5</td>
-                <td>6</td>
-                <td>7</td>
-                <td>8</td>
-              </tr>
-              <tr>
-                <td>9</td>
-                <td>10</td>
-                <td>11</td>
-                <td>12</td>
-                <td>13</td>
-                <td>14</td>
-                <td className="bg-primary text-white">15*</td>
-              </tr>
-              <tr>
-                <td>16</td>
-                <td>17</td>
-                <td>18</td>
-                <td>19</td>
-                <td>20</td>
-                <td>21</td>
-                <td className="bg-success text-white">22*</td>
-              </tr>
-              <tr>
-                <td>23</td>
-                <td>24</td>
-                <td>25</td>
-                <td>26</td>
-                <td>27</td>
-                <td>28</td>
-                <td>29</td>
-              </tr>
-              <tr>
-                <td>30</td>
-                <td>31</td>
-                <td className="text-muted">1</td>
-                <td className="text-muted">2</td>
-                <td className="text-muted">3</td>
-                <td className="text-muted">4</td>
-                <td className="bg-info text-white text-muted">5*</td>
-              </tr>
-            </tbody>
-          </Table>
-          <div className="d-flex align-items-center mt-2">
-            <div className="me-3">
-              <span className="badge bg-primary">*</span> Barangay Assembly
-              Meeting
-            </div>
-            <div className="me-3">
-              <span className="badge bg-success">*</span> Health and Wellness
-              Day
-            </div>
-            <div>
-              <span className="badge bg-info">*</span> Livelihood Training
-              Workshop
-            </div>
-          </div>
-        </Card.Body>
-      </Card>
     </Container>
   );
 };

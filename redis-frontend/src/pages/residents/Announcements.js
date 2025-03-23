@@ -1,4 +1,4 @@
-// src/pages/residents/Announcements.js
+// src/pages/residents/Announcements.js - FIXED VERSION
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -23,79 +23,33 @@ import {
   FaExclamationCircle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { announcementService } from "../../services/api";
 
 const Announcements = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState([]);
-  const [persistentAnnouncements, setPersistentAnnouncements] = useState([]);
 
-  // Initialize announcements data (in a real app, this would come from an API)
+  // Fetch announcements on component mount
   useEffect(() => {
-    setLoading(true);
+    fetchAnnouncements();
+  }, []);
 
-    // Sample data
-    const sampleAnnouncements = [
-      {
-        id: 1,
-        title: "COVID-19 Vaccination Schedule",
-        date: "2023-07-01",
-        category: "health",
-        type: "important",
-        content:
-          "The barangay will be conducting COVID-19 vaccination on July 15, 2023, from 8:00 AM to 5:00 PM at the Barangay Health Center. Booster shots are now available. Please bring your vaccination card and a valid ID.",
-      },
-      {
-        id: 2,
-        title: "Road Maintenance Advisory",
-        date: "2023-07-05",
-        category: "infrastructure",
-        type: "warning",
-        content:
-          "Main Road will be closed for repairs from July 15 to July 20, 2023. Please use alternate routes during this period. The repair works will be conducted from 8:00 AM to 5:00 PM daily.",
-      },
-      {
-        id: 3,
-        title: "Community Clean-up Drive",
-        date: "2023-07-08",
-        category: "environment",
-        type: "info",
-        content:
-          "Join us for our monthly community clean-up drive at the barangay plaza on July 10, 2023, from 7:00 AM to 10:00 AM. Please bring your own gloves and cleaning materials. Refreshments will be provided.",
-      },
-      {
-        id: 4,
-        title: "Free Medical Check-up",
-        date: "2023-07-10",
-        category: "health",
-        type: "info",
-        content:
-          "Free health check-up for all barangay residents at the community center on July 15, 2023, from 9:00 AM to 3:00 PM. Services include blood pressure monitoring, blood sugar screening, and basic medical consultation.",
-      },
-      {
-        id: 5,
-        title: "Summer Sports Festival",
-        date: "2023-07-12",
-        category: "events",
-        type: "info",
-        content:
-          "The Barangay Summer Sports Festival will be held from July 25 to August 5, 2023, at the Barangay Sports Complex. Registration is now open until July 20. Contact the Barangay Office for details.",
-      },
-    ];
-
-    // Store in persistent state
-    if (persistentAnnouncements.length === 0) {
-      setAnnouncements(sampleAnnouncements);
-      setPersistentAnnouncements(sampleAnnouncements);
-    } else {
-      setAnnouncements(persistentAnnouncements);
+  const fetchAnnouncements = async () => {
+    try {
+      setLoading(true);
+      const response = await announcementService.getAll();
+      setAnnouncements(response.data);
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      toast.error("Failed to load announcements");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
-  }, [persistentAnnouncements]);
+  };
 
   // Get announcement type icon
   const getAnnouncementIcon = (type) => {
