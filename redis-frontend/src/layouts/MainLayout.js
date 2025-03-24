@@ -1,4 +1,5 @@
 // src/layouts/MainLayout.js - FIXED WITHOUT DUPLICATE LINKS
+import Logo from "../components/Logo";
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Container, Navbar, Nav, Button, Offcanvas } from "react-bootstrap";
@@ -236,10 +237,16 @@ const MainLayout = () => {
           sidebarCollapsed ? "collapsed" : ""
         }`}
       >
+        <div className="sidebar-header d-flex flex-column align-items-center justify-content-center py-3">
+          <div className="logo-container text-center">
+            <Logo width={120} height={120} />
+          </div>
+          {!sidebarCollapsed && <h5 className="text-white mt-2 mb-0"></h5>}
+        </div>
         <div className="sidebar-header">
           <div className="logo-container">
             {!sidebarCollapsed && (
-              <h4 className="text-white mb-0">Barangay Management</h4>
+              <h4 className="text-white mb-0">Barangay Kabacsanan </h4>
             )}
             {sidebarCollapsed && <h4 className="text-white mb-0">BMS</h4>}
           </div>
