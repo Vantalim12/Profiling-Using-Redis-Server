@@ -1,4 +1,4 @@
-// src/pages/dashboard/ResidentDashboard.js - Updated to include demographics
+// src/pages/dashboard/ResidentDashboard.js - Update announcements section to use real data
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -8,10 +8,16 @@ import {
   Button,
   Spinner,
   Alert,
+  Badge,
 } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { residentService, dashboardService } from "../../services/api";
+import {
+  residentService,
+  dashboardService,
+  announcementService,
+  eventService,
+} from "../../services/api";
 import {
   FaUserAlt,
   FaFileAlt,
@@ -19,6 +25,9 @@ import {
   FaCalendarAlt,
   FaUsers,
   FaUserFriends,
+  FaExclamationCircle,
+  FaExclamationTriangle,
+  FaInfo,
 } from "react-icons/fa";
 import {
   BarChart,
@@ -43,6 +52,10 @@ const ResidentDashboard = () => {
     recentRegistrations: [],
   });
   const [error, setError] = useState("");
+  const [announcements, setAnnouncements] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
+  const [loadingEvents, setLoadingEvents] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -69,7 +82,86 @@ const ResidentDashboard = () => {
     };
 
     fetchData();
+    fetchAnnouncements();
+    fetchEvents();
   }, [currentUser]);
+
+  // Fetch real announcements from the API
+  const fetchAnnouncements = async () => {
+    try {
+      setLoadingAnnouncements(true);
+      const response = await announcementService.getAll();
+      // Sort by date (newest first) and take only 3 recent announcements
+      const sortedAnnouncements = response.data
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 3);
+      setAnnouncements(sortedAnnouncements);
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  };
+
+  // Fetch upcoming events
+  const fetchEvents = async () => {
+    try {
+      setLoadingEvents(true);
+      const response = await eventService.getAll();
+      // Filter upcoming events and sort by date
+      const now = new Date();
+      const upcomingEvents = response.data
+        .filter((event) => new Date(event.eventDate) >= now)
+        .sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate))
+        .slice(0, 3);
+      setEvents(upcomingEvents);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
+      setLoadingEvents(false);
+    }
+  };
+
+  // Calculate age from birthdate
+  const calculateAge = (birthDate) => {
+    if (!birthDate) return "N/A";
+
+    const dob = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  // Helper function to get announcement type variant
+  const getAnnouncementVariant = (type) => {
+    switch (type) {
+      case "important":
+        return "danger";
+      case "warning":
+        return "warning";
+      case "info":
+        return "info";
+      default:
+        return "secondary";
+    }
+  };
+
+  // Helper function to get announcement icon
+  const getAnnouncementIcon = (type) => {
+    switch (type) {
+      case "important":
+        return <FaExclamationCircle className="text-danger me-2" />;
+      case "warning":
+        return <FaExclamationTriangle className="text-warning me-2" />;
+      case "info":
+      default:
+        return <FaInfo className="text-info me-2" />;
+    }
+  };
 
   if (loading) {
     return (
@@ -160,7 +252,6 @@ const ResidentDashboard = () => {
               <p className="text-muted small">
                 View important notices from the barangay
               </p>
-              // src/pages/dashboard/ResidentDashboard.js (continuation)
               <Button
                 as={Link}
                 to="/dashboard/announcements"
@@ -292,30 +383,45 @@ const ResidentDashboard = () => {
       <Row>
         <Col lg={6} className="mb-4">
           <Card className="shadow-sm h-100">
-            <Card.Header className="bg-primary text-white">
+            <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Recent Announcements</h5>
+              <Button
+                as={Link}
+                to="/dashboard/announcements"
+                variant="light"
+                size="sm"
+              >
+                View All
+              </Button>
             </Card.Header>
             <Card.Body>
-              <Alert variant="info">
-                <strong>COVID-19 Vaccination</strong>
-                <p className="mb-0 small">
-                  Booster shots are now available at the health center every
-                  Wednesday.
+              {loadingAnnouncements ? (
+                <div className="text-center py-3">
+                  <Spinner animation="border" size="sm" />
+                </div>
+              ) : announcements.length > 0 ? (
+                announcements.map((announcement) => (
+                  <Alert
+                    key={announcement.id}
+                    variant={getAnnouncementVariant(announcement.type)}
+                    className="mb-3"
+                  >
+                    <div className="d-flex align-items-center mb-1">
+                      {getAnnouncementIcon(announcement.type)}
+                      <strong>{announcement.title}</strong>
+                    </div>
+                    <p className="mb-0 small">
+                      {announcement.content.length > 120
+                        ? `${announcement.content.substring(0, 120)}...`
+                        : announcement.content}
+                    </p>
+                  </Alert>
+                ))
+              ) : (
+                <p className="text-center text-muted">
+                  No announcements available at this time.
                 </p>
-              </Alert>
-              <Alert variant="warning">
-                <strong>Road Maintenance</strong>
-                <p className="mb-0 small">
-                  Main Road will be closed for repairs from July 15-20, 2023.
-                </p>
-              </Alert>
-              <Alert variant="success">
-                <strong>Community Garden</strong>
-                <p className="mb-0 small">
-                  Join us in planting vegetables at the community garden this
-                  weekend.
-                </p>
-              </Alert>
+              )}
               <div className="text-end mt-2">
                 <Button
                   as={Link}
@@ -332,55 +438,53 @@ const ResidentDashboard = () => {
 
         <Col lg={6} className="mb-4">
           <Card className="shadow-sm h-100">
-            <Card.Header className="bg-primary text-white">
+            <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Upcoming Events</h5>
+              <Button
+                as={Link}
+                to="/dashboard/events"
+                variant="light"
+                size="sm"
+              >
+                View All
+              </Button>
             </Card.Header>
             <Card.Body>
-              <div className="d-flex mb-3 pb-3 border-bottom">
-                <div className="text-center me-3">
-                  <div className="bg-light p-2 rounded">
-                    <div className="fw-bold">JUL</div>
-                    <div className="h4 mb-0">15</div>
+              {loadingEvents ? (
+                <div className="text-center py-3">
+                  <Spinner animation="border" size="sm" />
+                </div>
+              ) : events.length > 0 ? (
+                events.map((event) => (
+                  <div
+                    key={event.id}
+                    className="d-flex mb-3 pb-3 border-bottom"
+                  >
+                    <div className="text-center me-3">
+                      <div className="bg-light p-2 rounded">
+                        <div className="fw-bold">
+                          {new Date(event.eventDate)
+                            .toLocaleString("default", { month: "short" })
+                            .toUpperCase()}
+                        </div>
+                        <div className="h4 mb-0">
+                          {new Date(event.eventDate).getDate()}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h6 className="mb-1">{event.title}</h6>
+                      <p className="text-muted mb-0 small">
+                        {event.time} at {event.location}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <h6 className="mb-1">Barangay Assembly Meeting</h6>
-                  <p className="text-muted mb-0 small">
-                    9:00 AM at the Barangay Hall
-                  </p>
-                </div>
-              </div>
-
-              <div className="d-flex mb-3 pb-3 border-bottom">
-                <div className="text-center me-3">
-                  <div className="bg-light p-2 rounded">
-                    <div className="fw-bold">JUL</div>
-                    <div className="h4 mb-0">22</div>
-                  </div>
-                </div>
-                <div>
-                  <h6 className="mb-1">Health and Wellness Day</h6>
-                  <p className="text-muted mb-0 small">
-                    Free medical check-ups and consultations
-                  </p>
-                </div>
-              </div>
-
-              <div className="d-flex">
-                <div className="text-center me-3">
-                  <div className="bg-light p-2 rounded">
-                    <div className="fw-bold">AUG</div>
-                    <div className="h4 mb-0">05</div>
-                  </div>
-                </div>
-                <div>
-                  <h6 className="mb-1">Livelihood Training</h6>
-                  <p className="text-muted mb-0 small">
-                    Basic entrepreneurship skills training
-                  </p>
-                </div>
-              </div>
-
+                ))
+              ) : (
+                <p className="text-center text-muted">
+                  No upcoming events at this time.
+                </p>
+              )}
               <div className="text-end mt-3">
                 <Button
                   as={Link}

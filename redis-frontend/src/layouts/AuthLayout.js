@@ -34,7 +34,7 @@ const AuthLayout = () => {
           <Card className="shadow-lg border-0 rounded-lg">
             <Card.Header className="text-center bg-primary text-white py-4">
               <h3 className="font-weight-light my-2">
-                Barangay Management System
+                Barangay Kabacsanan Profiling System
               </h3>
             </Card.Header>
             <Card.Body>

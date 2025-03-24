@@ -1,4 +1,6 @@
-// src/pages/residents/Announcements.js - FIXED VERSION
+// src/pages/residents/Announcements.js - UPDATED VERSION
+// This is already fetching from the API correctly, but let's ensure it works properly
+
 import React, { useState, useEffect } from "react";
 import {
   Container,
@@ -43,6 +45,7 @@ const Announcements = () => {
       setLoading(true);
       const response = await announcementService.getAll();
       setAnnouncements(response.data);
+      console.log("Fetched announcements:", response.data);
     } catch (error) {
       console.error("Error fetching announcements:", error);
       toast.error("Failed to load announcements");
