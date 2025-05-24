@@ -2,7 +2,7 @@
 
 A comprehensive web-based management system for barangay administration, resident registration, and community services built with React, Node.js, Express, and Redis.
 
-![Redis]([https://via.placeholder.com/800x400/0d6efd/ffffff?text=Barangay+Management+System](https://community.appinventor.mit.edu/uploads/default/original/2X/4/4ff24d52cc39e851235549aaeace849a617988ff.png))
+![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 ![Express.js](https://img.shields.io/badge/Express.js-404D59?style=for-the-badge)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
